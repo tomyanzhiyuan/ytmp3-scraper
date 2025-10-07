@@ -1,0 +1,93 @@
+# Cline Rules for YouTube MP3 Scraper Project
+
+## Project Overview
+This is a full-stack YouTube channel video scraper and MP3 downloader with:
+- **Backend**: Python FastAPI with yt-dlp for video scraping and downloading
+- **Frontend**: React + Vite + TypeScript + Tailwind CSS
+- **Purpose**: Scrape YouTube channels, filter videos (>1 min, no Shorts/livestreams), download as MP3
+
+## Code Style & Standards
+
+### Python (Backend)
+- Use Python 3.11+ features
+- Follow PEP 8 style guide
+- Use type hints for all function signatures
+- Use async/await for I/O operations
+- Use Pydantic models for data validation
+- Handle errors gracefully with try-except blocks
+- Use descriptive variable names
+
+### TypeScript/React (Frontend)
+- Use functional components with hooks
+- Use TypeScript strict mode
+- Use Tailwind CSS for styling (no custom CSS unless necessary)
+- Follow React best practices (proper key props, avoid inline functions in JSX)
+- Use async/await for API calls
+- Handle loading and error states
+
+## Architecture Guidelines
+
+### Backend Structure
+- `main.py`: FastAPI app, CORS configuration, route definitions
+- `video_scraper.py`: YouTube channel scraping logic using yt-dlp
+- `downloader.py`: Video download and MP3 conversion logic
+- `models.py`: Pydantic models for request/response validation
+
+### Frontend Structure
+- Component-based architecture
+- Separate API logic in `api.ts`
+- Use React hooks for state management
+- Responsive design with Tailwind CSS
+
+## Key Technical Requirements
+
+### Video Filtering
+- Duration must be > 60 seconds
+- Exclude YouTube Shorts (check `is_short` field or duration)
+- Exclude livestreams (check `is_live` or `was_live` fields)
+
+### Download Configuration
+- Audio format: MP3
+- Quality: 320kbps
+- Output directory: `output/`
+- Filename sanitization required
+
+### API Design
+- RESTful endpoints
+- Proper HTTP status codes
+- JSON request/response bodies
+- CORS enabled for local development
+
+## Dependencies
+
+### Backend
+- fastapi: Web framework
+- uvicorn: ASGI server
+- yt-dlp: YouTube video extraction and download
+- pydantic: Data validation
+- FFmpeg: Required system dependency for audio conversion
+
+### Frontend
+- react: UI library
+- vite: Build tool
+- typescript: Type safety
+- tailwindcss: Styling
+- axios: HTTP client
+
+## Testing Considerations
+- Test with various YouTube channel URLs
+- Handle edge cases (private videos, deleted videos, age-restricted content)
+- Test download progress tracking
+- Verify MP3 file quality and metadata
+
+## Security Notes
+- Sanitize filenames to prevent directory traversal
+- Validate YouTube URLs before processing
+- Rate limit API endpoints if needed
+- Don't expose internal error details to frontend
+
+## Performance Optimization
+- Use background tasks for downloads
+- Implement progress tracking
+- Consider queue system for large batch downloads
+- Cache channel metadata if appropriate
