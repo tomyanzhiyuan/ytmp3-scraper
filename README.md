@@ -32,25 +32,16 @@ A full-stack web application that scrapes YouTube channels, filters videos, and 
 
 Before you begin, ensure you have the following installed:
 
-1. **Python 3.11 or higher**
-   ```bash
-   python --version
-   ```
-
-2. **Node.js 18 or higher**
-   ```bash
-   node --version
-   ```
-
-3. **FFmpeg** (required for audio conversion)
-   - **macOS**: `brew install ffmpeg`
-   - **Ubuntu/Debian**: `sudo apt install ffmpeg`
-   - **Windows**: Download from [ffmpeg.org](https://ffmpeg.org/download.html)
+1. **Conda** (Anaconda or Miniconda)
+   - **macOS/Linux**: Download from [conda.io](https://docs.conda.io/en/latest/miniconda.html)
+   - **Windows**: Download from [conda.io](https://docs.conda.io/en/latest/miniconda.html)
 
    Verify installation:
    ```bash
-   ffmpeg -version
+   conda --version
    ```
+
+**Note:** The Conda environment will automatically install Python 3.11, Node.js 18+, and FFmpeg, avoiding dependency conflicts.
 
 ## 🚀 Installation
 
@@ -59,29 +50,24 @@ Before you begin, ensure you have the following installed:
 cd ytmp3-scraper
 ```
 
-### 2. Backend Setup
+### 2. Create Conda Environment
 
 ```bash
-# Navigate to backend directory
-cd backend
-
-# Create virtual environment (recommended)
-python -m venv venv
-
-# Activate virtual environment
-# On macOS/Linux:
-source venv/bin/activate
-# On Windows:
-# venv\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt
+# Create and activate the Conda environment
+conda env create -f environment.yml
+conda activate ytmp3-scraper
 ```
+
+This single command will install:
+- Python 3.11
+- FFmpeg (no separate installation needed!)
+- Node.js 18+
+- All Python dependencies (FastAPI, yt-dlp, etc.)
 
 ### 3. Frontend Setup
 
 ```bash
-# Navigate to frontend directory (from project root)
+# Navigate to frontend directory
 cd frontend
 
 # Install dependencies
@@ -96,8 +82,11 @@ You'll need two terminal windows:
 
 #### Terminal 1 - Backend Server
 ```bash
+# Activate Conda environment
+conda activate ytmp3-scraper
+
+# Navigate to backend and start server
 cd backend
-source venv/bin/activate  # If using virtual environment
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
@@ -105,6 +94,10 @@ The backend API will be available at `http://localhost:8000`
 
 #### Terminal 2 - Frontend Dev Server
 ```bash
+# Activate Conda environment (if not already active)
+conda activate ytmp3-scraper
+
+# Navigate to frontend and start dev server
 cd frontend
 npm run dev
 ```
@@ -255,12 +248,44 @@ Edit `backend/downloader.py` to customize:
 - **File naming**: Modify output template
 - **yt-dlp options**: Add additional download options
 
+## 🔧 Conda Environment Management
+
+### Useful Commands
+
+```bash
+# List all Conda environments
+conda env list
+
+# Activate the environment
+conda activate ytmp3-scraper
+
+# Deactivate the current environment
+conda deactivate
+
+# Update the environment (after modifying environment.yml)
+conda env update -f environment.yml --prune
+
+# Remove the environment completely
+conda env remove -n ytmp3-scraper
+
+# Export current environment to a file
+conda env export > environment_backup.yml
+```
+
+### Updating Dependencies
+
+If you need to update Python packages:
+
+1. Edit `environment.yml` to change package versions
+2. Run: `conda env update -f environment.yml --prune`
+3. Restart your terminal and reactivate: `conda activate ytmp3-scraper`
+
 ## 🐛 Troubleshooting
 
 ### "FFmpeg not found"
-- Ensure FFmpeg is installed and in your system PATH
+- If using Conda: FFmpeg should be automatically installed. Try `conda activate ytmp3-scraper` and verify with `ffmpeg -version`
+- If FFmpeg is missing, reinstall the environment: `conda env remove -n ytmp3-scraper && conda env create -f environment.yml`
 - Restart your terminal after installation
-- Verify with `ffmpeg -version`
 
 ### "CORS Error" in browser
 - Ensure backend is running on port 8000

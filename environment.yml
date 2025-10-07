@@ -1,0 +1,15 @@
+name: ytmp3-scraper
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - pip
+  - ffmpeg
+  - nodejs>=18
+  - pip:
+      - fastapi==0.104.1
+      - uvicorn[standard]==0.24.0
+      - yt-dlp==2023.11.16
+      - pydantic==2.5.0
+      - python-multipart==0.0.6
