@@ -49,6 +49,18 @@ download_state: Dict = {
     "channel_name": None  # Current channel name for organizing downloads
 }
 
+# Global state for scraping progress
+scrape_state: Dict = {
+    "status": "idle",  # idle, scraping, completed, error
+    "total_videos": 0,
+    "processed_videos": 0,
+    "filtered_videos": 0,
+    "current_video": None,
+    "percentage": 0.0,
+    "error": None,
+    "result": None  # Final scrape result
+}
+
 
 @app.get("/")
 async def root():
@@ -65,10 +77,52 @@ async def root():
     }
 
 
-@app.post("/api/scrape", response_model=ScrapeResponse)
-async def scrape_channel(request: ChannelRequest):
+async def scrape_channel_task(channel_url: str):
     """
-    Scrape a YouTube channel and return filtered video metadata.
+    Background task to scrape channel videos.
+    """
+    scrape_state["status"] = "scraping"
+    scrape_state["error"] = None
+    scrape_state["result"] = None
+    
+    def progress_callback(total, processed, filtered, current_title):
+        """Update scrape progress"""
+        scrape_state["total_videos"] = total
+        scrape_state["processed_videos"] = processed
+        scrape_state["filtered_videos"] = filtered
+        scrape_state["current_video"] = current_title
+        scrape_state["percentage"] = (processed / total * 100) if total > 0 else 0
+    
+    try:
+        # Scrape videos with progress callback
+        channel_name, videos = scrape_channel_videos(channel_url, progress_callback)
+        
+        # Store channel name and video metadata in global state for later download
+        download_state["channel_name"] = channel_name
+        for video in videos:
+            download_state["video_map"][video["id"]] = video
+        
+        # Store result
+        scrape_state["result"] = {
+            "channel_name": channel_name,
+            "videos": videos
+        }
+        scrape_state["status"] = "completed"
+        scrape_state["current_video"] = None
+        
+        logger.info(f"Scraping completed: {len(videos)} videos found")
+        
+    except Exception as e:
+        logger.error(f"Error in scrape task: {str(e)}")
+        scrape_state["status"] = "error"
+        scrape_state["error"] = str(e)
+
+
+@app.post("/api/scrape")
+async def scrape_channel(request: ChannelRequest, background_tasks: BackgroundTasks):
+    """
+    Start scraping a YouTube channel in the background.
+    Returns immediately and client should poll /api/scrape-progress for updates.
     
     Filters:
     - Duration > 60 seconds
@@ -82,26 +136,42 @@ async def scrape_channel(request: ChannelRequest):
         if not request.channel_url or "youtube.com" not in request.channel_url:
             raise HTTPException(status_code=400, detail="Invalid YouTube channel URL")
         
-        # Scrape videos
-        channel_name, videos = scrape_channel_videos(request.channel_url)
+        # Check if already scraping
+        if scrape_state["status"] == "scraping":
+            raise HTTPException(status_code=409, detail="Scraping already in progress")
         
-        # Store channel name and video metadata in global state for later download
-        download_state["channel_name"] = channel_name
-        for video in videos:
-            download_state["video_map"][video["id"]] = video
+        # Start background scraping task
+        background_tasks.add_task(scrape_channel_task, request.channel_url)
         
-        # Convert to response model
-        video_metadata = [VideoMetadata(**video) for video in videos]
+        return {"message": "Scraping started", "status": "scraping"}
         
-        return ScrapeResponse(
-            videos=video_metadata,
-            total_found=len(videos),  # In real scenario, track before filtering
-            filtered_count=len(video_metadata)
-        )
-        
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error in scrape endpoint: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/scrape-progress")
+async def get_scrape_progress():
+    """
+    Get current scraping progress.
+    """
+    response = {
+        "status": scrape_state["status"],
+        "total_videos": scrape_state["total_videos"],
+        "processed_videos": scrape_state["processed_videos"],
+        "filtered_videos": scrape_state["filtered_videos"],
+        "current_video": scrape_state["current_video"],
+        "percentage": scrape_state["percentage"],
+        "error": scrape_state["error"]
+    }
+    
+    # If completed, include the result
+    if scrape_state["status"] == "completed" and scrape_state["result"]:
+        response["result"] = scrape_state["result"]
+    
+    return response
 
 
 async def download_videos_task(video_ids: list):

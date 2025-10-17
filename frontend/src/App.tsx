@@ -5,17 +5,19 @@ import { useState, useEffect } from 'react';
 import ChannelInput from './components/ChannelInput';
 import VideoList from './components/VideoList';
 import DownloadProgress from './components/DownloadProgress';
+import ScrapeProgress from './components/ScrapeProgress';
 import {
-  scrapeChannel,
+  startScrape,
+  getScrapeProgress,
   downloadVideos,
   getProgress,
   VideoMetadata,
   DownloadProgress as ProgressType,
+  ScrapeProgress as ScrapeProgressType,
 } from './api';
 
 function App() {
   const [videos, setVideos] = useState<VideoMetadata[]>([]);
-  const [isScrapingLoading, setIsScrapingLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState<ProgressType>({
     current: 0,
@@ -26,13 +28,52 @@ function App() {
     completed_videos: [],
     failed_videos: [],
   });
+  const [scrapeProgress, setScrapeProgress] = useState<ScrapeProgressType>({
+    status: 'idle',
+    total_videos: 0,
+    processed_videos: 0,
+    filtered_videos: 0,
+    current_video: null,
+    percentage: 0,
+    error: null,
+  });
+
+  // Poll for scraping progress
+  useEffect(() => {
+    let interval: number | null = null;
+
+    if (scrapeProgress.status === 'scraping') {
+      interval = window.setInterval(async () => {
+        try {
+          const newProgress = await getScrapeProgress();
+          setScrapeProgress(newProgress);
+
+          // When scraping completes, set the videos
+          if (newProgress.status === 'completed' && newProgress.result) {
+            setVideos(newProgress.result.videos);
+            if (newProgress.result.videos.length === 0) {
+              setError('No eligible videos found. Channel may only have Shorts or livestreams.');
+            }
+          } else if (newProgress.status === 'error') {
+            setError(newProgress.error || 'Failed to scrape channel');
+          }
+        } catch (err) {
+          console.error('Error fetching scrape progress:', err);
+        }
+      }, 500); // Poll every 500ms for real-time updates
+    }
+
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [scrapeProgress.status]);
 
   // Poll for download progress
   useEffect(() => {
-    let interval: NodeJS.Timeout | null = null;
+    let interval: number | null = null;
 
     if (progress.status === 'downloading') {
-      interval = setInterval(async () => {
+      interval = window.setInterval(async () => {
         try {
           const newProgress = await getProgress();
           setProgress(newProgress);
@@ -48,22 +89,25 @@ function App() {
   }, [progress.status]);
 
   const handleScrape = async (url: string) => {
-    setIsScrapingLoading(true);
     setError(null);
     setVideos([]);
+    setScrapeProgress({
+      status: 'scraping',
+      total_videos: 0,
+      processed_videos: 0,
+      filtered_videos: 0,
+      current_video: null,
+      percentage: 0,
+      error: null,
+    });
 
     try {
-      const response = await scrapeChannel(url);
-      setVideos(response.videos);
-
-      if (response.videos.length === 0) {
-        setError('No eligible videos found. Channel may only have Shorts or livestreams.');
-      }
+      await startScrape(url);
+      // Polling will handle the rest
     } catch (err: any) {
-      setError(err.response?.data?.detail || err.message || 'Failed to scrape channel');
+      setError(err.response?.data?.detail || err.message || 'Failed to start scraping');
       console.error('Scrape error:', err);
-    } finally {
-      setIsScrapingLoading(false);
+      setScrapeProgress({ ...scrapeProgress, status: 'error', error: err.message });
     }
   };
 
@@ -115,7 +159,10 @@ function App() {
         )}
 
         {/* Channel Input */}
-        <ChannelInput onScrape={handleScrape} isLoading={isScrapingLoading} />
+        <ChannelInput onScrape={handleScrape} isLoading={scrapeProgress.status === 'scraping'} />
+
+        {/* Scrape Progress */}
+        <ScrapeProgress progress={scrapeProgress} />
 
         {/* Video List */}
         {videos.length > 0 && (

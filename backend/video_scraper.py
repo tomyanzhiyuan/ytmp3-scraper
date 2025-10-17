@@ -9,12 +9,13 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-def scrape_channel_videos(channel_url: str) -> tuple[str, List[Dict]]:
+def scrape_channel_videos(channel_url: str, progress_callback=None) -> tuple[str, List[Dict]]:
     """
     Scrape all videos from a YouTube channel and filter them.
     
     Args:
         channel_url: YouTube channel URL
+        progress_callback: Optional callback function(total, processed, filtered, current_title)
         
     Returns:
         Tuple of (channel_name, list of video metadata dictionaries)
@@ -22,38 +23,39 @@ def scrape_channel_videos(channel_url: str) -> tuple[str, List[Dict]]:
     Raises:
         Exception: If scraping fails
     """
-    ydl_opts = {
+    # First pass: Get video list quickly with extract_flat
+    ydl_opts_flat = {
         'quiet': True,
         'no_warnings': True,
-        'ignoreerrors': True,  # Continue on errors
+        'extract_flat': True,
+        'ignoreerrors': True,
     }
     
     try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            logger.info(f"Scraping channel: {channel_url}")
-            
-            # Extract channel info and videos
+        logger.info(f"Scraping channel: {channel_url}")
+        
+        # Step 1: Get video IDs and basic info quickly
+        with yt_dlp.YoutubeDL(ydl_opts_flat) as ydl:
             result = ydl.extract_info(channel_url, download=False)
             
             if not result:
                 raise Exception("Failed to extract channel information")
             
-            # Get channel info
             channel_name = result.get('uploader') or result.get('channel') or 'unknown_channel'
-            
-            # Get entries (videos)
             entries = result.get('entries', [])
             
             if not entries:
                 logger.warning("No videos found in channel")
-                return []
+                return channel_name, []
             
             logger.info(f"Found {len(entries)} total videos from {channel_name}")
             
             # Filter videos
             filtered_videos = []
+            processed_count = 0
+            total_count = len(entries)
             
-            for entry in entries:
+            for idx, entry in enumerate(entries, 1):
                 if not entry:
                     continue
                 
@@ -92,6 +94,11 @@ def scrape_channel_videos(channel_url: str) -> tuple[str, List[Dict]]:
                 }
                 
                 filtered_videos.append(video_data)
+                
+                # Report progress
+                processed_count = idx
+                if progress_callback:
+                    progress_callback(total_count, processed_count, len(filtered_videos), title)
             
             logger.info(f"Filtered to {len(filtered_videos)} eligible videos")
             return channel_name, filtered_videos

@@ -27,6 +27,20 @@ export interface ScrapeResponse {
   filtered_count: number;
 }
 
+export interface ScrapeProgress {
+  status: 'idle' | 'scraping' | 'completed' | 'error';
+  total_videos: number;
+  processed_videos: number;
+  filtered_videos: number;
+  current_video: string | null;
+  percentage: number;
+  error: string | null;
+  result?: {
+    channel_name: string;
+    videos: VideoMetadata[];
+  };
+}
+
 export interface DownloadProgress {
   current: number;
   total: number;
@@ -43,12 +57,19 @@ export interface FilesResponse {
 }
 
 /**
- * Scrape a YouTube channel for videos
+ * Start scraping a YouTube channel (non-blocking)
  */
-export const scrapeChannel = async (channelUrl: string): Promise<ScrapeResponse> => {
-  const response = await api.post<ScrapeResponse>('/api/scrape', {
+export const startScrape = async (channelUrl: string): Promise<void> => {
+  await api.post('/api/scrape', {
     channel_url: channelUrl,
   });
+};
+
+/**
+ * Get current scraping progress
+ */
+export const getScrapeProgress = async (): Promise<ScrapeProgress> => {
+  const response = await api.get<ScrapeProgress>('/api/scrape-progress');
   return response.data;
 };
 
