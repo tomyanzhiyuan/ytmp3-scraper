@@ -29,10 +29,20 @@ def scrape_channel_videos(channel_url: str, progress_callback=None) -> tuple[str
         'no_warnings': True,
         'extract_flat': True,
         'ignoreerrors': True,
+        'playlistend': None,  # Get all videos, not just first page
     }
     
     try:
         logger.info(f"Scraping channel: {channel_url}")
+        
+        # Ensure we're fetching from the videos tab, not just featured
+        if '/videos' not in channel_url:
+            if channel_url.endswith('/'):
+                channel_url = channel_url + 'videos'
+            else:
+                channel_url = channel_url + '/videos'
+        
+        logger.info(f"Fetching from: {channel_url}")
         
         # Step 1: Get video IDs and basic info quickly
         with yt_dlp.YoutubeDL(ydl_opts_flat) as ydl:
