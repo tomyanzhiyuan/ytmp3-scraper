@@ -7,7 +7,7 @@ const API_BASE_URL = 'http://localhost:8000';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 120000, // 2 minutes for scraping large channels
+  timeout: 300000, // 5 minutes for scraping large channels
   headers: {
     'Content-Type': 'application/json',
   },
