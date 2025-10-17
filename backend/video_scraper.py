@@ -9,7 +9,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-def scrape_channel_videos(channel_url: str) -> List[Dict]:
+def scrape_channel_videos(channel_url: str) -> tuple[str, List[Dict]]:
     """
     Scrape all videos from a YouTube channel and filter them.
     
@@ -17,7 +17,7 @@ def scrape_channel_videos(channel_url: str) -> List[Dict]:
         channel_url: YouTube channel URL
         
     Returns:
-        List of video metadata dictionaries
+        Tuple of (channel_name, list of video metadata dictionaries)
         
     Raises:
         Exception: If scraping fails
@@ -25,7 +25,6 @@ def scrape_channel_videos(channel_url: str) -> List[Dict]:
     ydl_opts = {
         'quiet': True,
         'no_warnings': True,
-        'extract_flat': True,  # Don't download, just extract metadata
         'ignoreerrors': True,  # Continue on errors
     }
     
@@ -39,6 +38,9 @@ def scrape_channel_videos(channel_url: str) -> List[Dict]:
             if not result:
                 raise Exception("Failed to extract channel information")
             
+            # Get channel info
+            channel_name = result.get('uploader') or result.get('channel') or 'unknown_channel'
+            
             # Get entries (videos)
             entries = result.get('entries', [])
             
@@ -46,7 +48,7 @@ def scrape_channel_videos(channel_url: str) -> List[Dict]:
                 logger.warning("No videos found in channel")
                 return []
             
-            logger.info(f"Found {len(entries)} total videos")
+            logger.info(f"Found {len(entries)} total videos from {channel_name}")
             
             # Filter videos
             filtered_videos = []
@@ -92,7 +94,7 @@ def scrape_channel_videos(channel_url: str) -> List[Dict]:
                 filtered_videos.append(video_data)
             
             logger.info(f"Filtered to {len(filtered_videos)} eligible videos")
-            return filtered_videos
+            return channel_name, filtered_videos
             
     except Exception as e:
         logger.error(f"Error scraping channel: {str(e)}")

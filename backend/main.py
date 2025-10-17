@@ -45,7 +45,8 @@ download_state: Dict = {
     "current_video": None,
     "completed_videos": [],
     "failed_videos": [],
-    "video_map": {}  # Maps video IDs to metadata
+    "video_map": {},  # Maps video IDs to metadata
+    "channel_name": None  # Current channel name for organizing downloads
 }
 
 
@@ -82,9 +83,10 @@ async def scrape_channel(request: ChannelRequest):
             raise HTTPException(status_code=400, detail="Invalid YouTube channel URL")
         
         # Scrape videos
-        videos = scrape_channel_videos(request.channel_url)
+        channel_name, videos = scrape_channel_videos(request.channel_url)
         
-        # Store video metadata in global state for later download
+        # Store channel name and video metadata in global state for later download
+        download_state["channel_name"] = channel_name
         for video in videos:
             download_state["video_map"][video["id"]] = video
         
@@ -130,8 +132,9 @@ async def download_videos_task(video_ids: list):
             
             logger.info(f"Downloading {idx}/{len(video_ids)}: {title}")
             
-            # Download video
-            output_file = download_video_as_mp3(video_url)
+            # Download video with channel name for subfolder organization
+            channel_name = download_state.get("channel_name")
+            output_file = download_video_as_mp3(video_url, channel_name=channel_name)
             
             download_state["completed_videos"].append(title)
             logger.info(f"Successfully downloaded: {title}")

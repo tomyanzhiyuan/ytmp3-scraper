@@ -38,7 +38,8 @@ def sanitize_filename(filename: str) -> str:
 
 def download_video_as_mp3(
     video_url: str,
-    progress_callback: Optional[Callable[[Dict], None]] = None
+    progress_callback: Optional[Callable[[Dict], None]] = None,
+    channel_name: Optional[str] = None
 ) -> str:
     """
     Download a YouTube video and convert it to MP3.
@@ -46,6 +47,7 @@ def download_video_as_mp3(
     Args:
         video_url: YouTube video URL
         progress_callback: Optional callback function for progress updates
+        channel_name: Optional channel name for organizing into subfolders
         
     Returns:
         Path to the downloaded MP3 file
@@ -53,8 +55,15 @@ def download_video_as_mp3(
     Raises:
         Exception: If download fails
     """
+    # Determine output directory (with channel subfolder if provided)
+    output_dir = OUTPUT_DIR
+    if channel_name:
+        # Sanitize channel name for filesystem
+        safe_channel_name = sanitize_filename(channel_name)
+        output_dir = os.path.join(OUTPUT_DIR, safe_channel_name)
+    
     # Ensure output directory exists
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    os.makedirs(output_dir, exist_ok=True)
     
     def progress_hook(d):
         """Hook for yt-dlp progress updates"""
@@ -75,7 +84,7 @@ def download_video_as_mp3(
             'preferredcodec': 'mp3',
             'preferredquality': '320',
         }],
-        'outtmpl': os.path.join(OUTPUT_DIR, '%(title)s.%(ext)s'),
+        'outtmpl': os.path.join(output_dir, '%(title)s.%(ext)s'),
         'progress_hooks': [progress_hook],
         'quiet': False,
         'no_warnings': False,
@@ -94,7 +103,7 @@ def download_video_as_mp3(
             
             # Construct expected output filename
             sanitized_title = sanitize_filename(title)
-            output_file = os.path.join(OUTPUT_DIR, f"{sanitized_title}.mp3")
+            output_file = os.path.join(output_dir, f"{sanitized_title}.mp3")
             
             # Check if file exists
             if os.path.exists(output_file):
@@ -102,9 +111,9 @@ def download_video_as_mp3(
                 return output_file
             else:
                 # Try to find the file with similar name
-                for file in os.listdir(OUTPUT_DIR):
+                for file in os.listdir(output_dir):
                     if file.endswith('.mp3') and sanitized_title.lower() in file.lower():
-                        output_file = os.path.join(OUTPUT_DIR, file)
+                        output_file = os.path.join(output_dir, file)
                         logger.info(f"Found downloaded file: {output_file}")
                         return output_file
                 
