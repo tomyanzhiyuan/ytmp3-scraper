@@ -6,7 +6,7 @@ from googleapiclient.errors import HttpError
 from typing import List, Dict, Optional
 import logging
 import os
-from dotenv import load_dotenv
+from dotenv import load_dotenv 
 
 load_dotenv()
 
@@ -35,7 +35,7 @@ class YouTubeAPIScraper:
         Extract channel ID from various YouTube URL formats
         
         Args:
-            channel_url: YouTube channel URL
+            channel_url: YouTube channel URL 
             
         Returns:
             Channel ID

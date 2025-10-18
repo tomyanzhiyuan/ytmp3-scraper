@@ -4,22 +4,26 @@ A full-stack web application that scrapes YouTube channels, filters videos, and 
 
 ## ✨ Features
 
-- 🎯 **Smart Filtering**: Automatically filters out YouTube Shorts and livestreams
+- 🚀 **Complete Channel Scraping**: Uses YouTube Data API v3 to fetch ALL videos (no 360 limit!)
+- 🎯 **Advanced Short Detection**: 3-method filtering (duration, aspect ratio, title patterns)
 - ⏱️ **Duration Filter**: Only downloads videos longer than 1 minute
 - 🎵 **High-Quality Audio**: Downloads and converts to 320kbps MP3
 - 🖥️ **Modern UI**: Clean, responsive React interface with Tailwind CSS
-- 📊 **Progress Tracking**: Real-time download progress updates
+- 📊 **Real-time Progress**: Live scraping and download progress updates
 - ✅ **Selective Downloads**: Choose specific videos or download all at once
-- 🚀 **Fast & Async**: Non-blocking downloads using FastAPI background tasks
+- � **Smart Fallback**: Automatically falls back to yt-dlp if no API key provided
+- 📝 **Transparent Logging**: See exactly why each video was filtered
 
 ## 🛠️ Tech Stack
 
 ### Backend
 - **Python 3.11+** - Core language
 - **FastAPI** - Modern async web framework
-- **yt-dlp** - YouTube video extraction and download
+- **YouTube Data API v3** - Complete channel video listing
+- **yt-dlp** - YouTube video download and MP3 conversion
 - **FFmpeg** - Audio conversion
 - **Pydantic** - Data validation
+- **python-dotenv** - Environment variable management
 
 ### Frontend
 - **React 18** - UI library
@@ -164,10 +168,13 @@ The frontend will be available at `http://localhost:5173`
 ytmp3-scraper/
 ├── backend/
 │   ├── main.py                 # FastAPI application & routes
-│   ├── video_scraper.py        # YouTube channel scraping logic
+│   ├── video_scraper.py        # Hybrid scraper (API + yt-dlp fallback)
+│   ├── youtube_api_scraper.py  # YouTube Data API v3 implementation
 │   ├── downloader.py           # Video download & MP3 conversion
 │   ├── models.py               # Pydantic data models
-│   └── requirements.txt        # Python dependencies
+│   ├── requirements.txt        # Python dependencies
+│   ├── .env                    # Environment variables (API key)
+│   └── .env.example            # Environment template
 ├── frontend/
 │   ├── src/
 │   │   ├── App.tsx             # Main application component

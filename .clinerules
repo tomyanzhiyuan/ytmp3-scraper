@@ -2,9 +2,10 @@
 
 ## Project Overview
 This is a full-stack YouTube channel video scraper and MP3 downloader with:
-- **Backend**: Python FastAPI with yt-dlp for video scraping and downloading
+- **Backend**: Python FastAPI with YouTube Data API v3 (primary) and yt-dlp (fallback/download)
 - **Frontend**: React + Vite + TypeScript + Tailwind CSS
 - **Purpose**: Scrape YouTube channels, filter videos (>1 min, no Shorts/livestreams), download as MP3
+- **Key Feature**: Uses YouTube Data API for fast, complete channel scraping (all videos, not just ~360)
 
 ## Code Style & Standards
 
@@ -29,9 +30,11 @@ This is a full-stack YouTube channel video scraper and MP3 downloader with:
 
 ### Backend Structure
 - `main.py`: FastAPI app, CORS configuration, route definitions
-- `video_scraper.py`: YouTube channel scraping logic using yt-dlp
-- `downloader.py`: Video download and MP3 conversion logic
+- `video_scraper.py`: Hybrid scraper (YouTube API primary, yt-dlp fallback)
+- `youtube_api_scraper.py`: YouTube Data API v3 implementation for complete channel scraping
+- `downloader.py`: Video download and MP3 conversion logic using yt-dlp
 - `models.py`: Pydantic models for request/response validation
+- `.env`: Environment variables (YouTube API key) - **NEVER commit this file**
 
 ### Frontend Structure
 - Component-based architecture
@@ -41,10 +44,14 @@ This is a full-stack YouTube channel video scraper and MP3 downloader with:
 
 ## Key Technical Requirements
 
-### Video Filtering
+### Video Filtering (Multi-Method Short Detection)
 - Duration must be > 60 seconds
-- Exclude YouTube Shorts (check `is_short` field or duration)
-- Exclude livestreams (check `is_live` or `was_live` fields)
+- Exclude YouTube Shorts using 3 detection methods:
+  1. **Duration check**: Videos ≤60 seconds
+  2. **Aspect ratio check**: Vertical videos (aspect ratio < 0.8)
+  3. **Title pattern check**: Videos 61-180s with #shorts, #short, or 🩳 in title
+- Exclude livestreams (check `is_live` or `liveStreamingDetails` field)
+- Filter reasons are logged for transparency
 
 ### Download Configuration
 - Audio format: MP3
@@ -63,9 +70,15 @@ This is a full-stack YouTube channel video scraper and MP3 downloader with:
 ### Backend
 - fastapi: Web framework
 - uvicorn: ASGI server
-- yt-dlp: YouTube video extraction and download
+- yt-dlp: YouTube video download and MP3 conversion
+- google-api-python-client: YouTube Data API v3 client
+- python-dotenv: Environment variable management
 - pydantic: Data validation
 - FFmpeg: Required system dependency for audio conversion
+
+### Environment Variables
+- `YOUTUBE_API_KEY`: Required for YouTube Data API access (get from Google Cloud Console)
+- Without API key: Falls back to yt-dlp (limited to ~360 videos per channel)
 
 ### Frontend
 - react: UI library
