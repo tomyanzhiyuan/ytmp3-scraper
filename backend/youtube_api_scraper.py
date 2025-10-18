@@ -100,9 +100,9 @@ class YouTubeAPIScraper:
             channel_id = self.get_channel_id(channel_url)
             logger.info(f"Found channel ID: {channel_id}")
             
-            # Get channel info
+            # Get channel info including contentDetails for uploads playlist
             channel_request = self.youtube.channels().list(
-                part='snippet',
+                part='snippet,contentDetails',
                 id=channel_id
             )
             channel_response = channel_request.execute()
@@ -110,24 +110,26 @@ class YouTubeAPIScraper:
             
             logger.info(f"Scraping channel: {channel_name}")
             
-            # Get all videos from channel
+            # Get the channel's uploads playlist ID
+            uploads_playlist_id = channel_response['items'][0]['contentDetails']['relatedPlaylists']['uploads']
+            logger.info(f"Uploads playlist ID: {uploads_playlist_id}")
+            
+            # Get all videos from the uploads playlist
             all_videos = []
             next_page_token = None
             
             while True:
-                # Get videos (50 per page, max allowed by API)
-                request = self.youtube.search().list(
-                    part='id',
-                    channelId=channel_id,
+                # Get videos from uploads playlist (50 per page, max allowed by API)
+                request = self.youtube.playlistItems().list(
+                    part='contentDetails',
+                    playlistId=uploads_playlist_id,
                     maxResults=50,
-                    order='date',
-                    type='video',
                     pageToken=next_page_token
                 )
                 response = request.execute()
                 
                 # Collect video IDs
-                video_ids = [item['id']['videoId'] for item in response['items']]
+                video_ids = [item['contentDetails']['videoId'] for item in response['items']]
                 all_videos.extend(video_ids)
                 
                 # Check if there are more pages
