@@ -150,9 +150,9 @@ class YouTubeAPIScraper:
             for i in range(0, len(all_videos), 50):
                 batch = all_videos[i:i+50]
                 
-                # Get video details
+                # Get video details including statistics for better Short detection
                 video_request = self.youtube.videos().list(
-                    part='snippet,contentDetails,liveStreamingDetails',
+                    part='snippet,contentDetails,liveStreamingDetails,player',
                     id=','.join(batch)
                 )
                 video_response = video_request.execute()
@@ -173,8 +173,27 @@ class YouTubeAPIScraper:
                     thumbnail = thumbnails.get('maxres', thumbnails.get('high', thumbnails.get('default', {})))
                     thumbnail_url = thumbnail.get('url', '')
                     
-                    # Apply filters
+                    # Detect Shorts by checking if it's a vertical video
+                    # Shorts are vertical (9:16 aspect ratio, height > width)
+                    is_short = False
+                    
+                    # Method 1: Check duration (Shorts are typically under 60s, but can be up to 3 minutes)
                     if duration < 60:
+                        is_short = True
+                    
+                    # Method 2: Check thumbnail dimensions (Shorts have tall thumbnails)
+                    if thumbnail:
+                        thumb_width = thumbnail.get('width', 0)
+                        thumb_height = thumbnail.get('height', 0)
+                        if thumb_height > 0 and thumb_width > 0:
+                            aspect_ratio = thumb_width / thumb_height
+                            # Normal videos are 16:9 (1.78), Shorts are 9:16 (0.56)
+                            if aspect_ratio < 0.8:  # Vertical video
+                                is_short = True
+                                logger.debug(f"Detected Short by aspect ratio: {title} (ratio: {aspect_ratio:.2f})")
+                    
+                    # Apply filters
+                    if is_short:
                         filter_reasons['shorts'] += 1
                         logger.debug(f"Filtered out Short: {title} ({duration}s)")
                         continue
