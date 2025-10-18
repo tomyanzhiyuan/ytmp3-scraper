@@ -6,7 +6,8 @@ from googleapiclient.errors import HttpError
 from typing import List, Dict, Optional
 import logging
 import os
-from dotenv import load_dotenv 
+from dotenv import load_dotenv
+import yt_dlp
 
 load_dotenv()
 
@@ -206,6 +207,12 @@ class YouTubeAPIScraper:
                         if any(indicator in title_lower for indicator in short_indicators):
                             is_short = True
                             detection_method = f"title indicator + duration ({duration}s)"
+                        else:
+                            # Method 4: Use yt-dlp to verify aspect ratio for suspicious videos
+                            logger.debug(f"Verifying with yt-dlp: {title} ({duration}s)")
+                            if self._is_short_ytdlp(video_id):
+                                is_short = True
+                                detection_method = f"yt-dlp aspect ratio verification ({duration}s)"
                     
                     if is_short and detection_method:
                         logger.info(f"Filtered Short: '{title}' - detected by {detection_method}")
@@ -255,6 +262,40 @@ class YouTubeAPIScraper:
         except Exception as e:
             logger.error(f"Error scraping channel: {str(e)}")
             raise Exception(f"Failed to scrape channel: {str(e)}")
+    
+    def _is_short_ytdlp(self, video_id: str) -> bool:
+        """
+        Use yt-dlp to verify if a video is a Short by checking its aspect ratio
+        
+        Args:
+            video_id: YouTube video ID
+            
+        Returns:
+            True if video is a Short, False otherwise
+        """
+        try:
+            ydl_opts = {
+                'quiet': True,
+                'no_warnings': True,
+                'skip_download': True,
+            }
+            
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
+                
+                # Check aspect ratio - Shorts are vertical (height > width)
+                width = info.get('width', 0)
+                height = info.get('height', 0)
+                
+                if width > 0 and height > 0:
+                    aspect_ratio = width / height
+                    # Vertical video (aspect ratio < 0.8) is likely a Short
+                    return aspect_ratio < 0.8
+                
+                return False
+        except Exception as e:
+            logger.debug(f"yt-dlp verification failed for {video_id}: {e}")
+            return False
     
     def _parse_duration(self, duration_str: str) -> int:
         """
