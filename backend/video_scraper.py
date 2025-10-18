@@ -1,15 +1,50 @@
 """
-YouTube channel video scraper using yt-dlp
+YouTube channel video scraper using YouTube Data API (with yt-dlp fallback)
 """
 import yt_dlp
 from typing import List, Dict
 import logging
+import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
 def scrape_channel_videos(channel_url: str, progress_callback=None) -> tuple[str, List[Dict]]:
+    """
+    Scrape all videos from a YouTube channel.
+    Tries YouTube Data API first (if API key available), falls back to yt-dlp.
+    
+    Args:
+        channel_url: YouTube channel URL
+        progress_callback: Optional callback function(total, processed, filtered, current_title)
+        
+    Returns:
+        Tuple of (channel_name, list of video metadata dictionaries)
+    """
+    # Try YouTube Data API first if API key is available
+    api_key = os.getenv('YOUTUBE_API_KEY')
+    if api_key:
+        try:
+            logger.info("Using YouTube Data API for scraping")
+            from youtube_api_scraper import YouTubeAPIScraper
+            
+            scraper = YouTubeAPIScraper(api_key)
+            return scraper.scrape_channel_videos(channel_url, progress_callback)
+        except Exception as e:
+            logger.warning(f"YouTube API failed: {e}. Falling back to yt-dlp...")
+    else:
+        logger.info("No YouTube API key found. Using yt-dlp (limited to ~360 videos)")
+    
+    # Fallback to yt-dlp
+    return _scrape_with_ytdlp(channel_url, progress_callback)
+
+
+def _scrape_with_ytdlp(channel_url: str, progress_callback=None) -> tuple[str, List[Dict]]:
     """
     Scrape all videos from a YouTube channel and filter them.
     
@@ -30,6 +65,8 @@ def scrape_channel_videos(channel_url: str, progress_callback=None) -> tuple[str
         'extract_flat': True,
         'ignoreerrors': True,
         'playlistend': None,  # Get all videos, not just first page
+        'lazy_playlist': False,  # Force full playlist extraction
+        'playlist_items': '1-10000',  # Fetch up to 10000 videos
     }
     
     try:
@@ -60,8 +97,13 @@ def scrape_channel_videos(channel_url: str, progress_callback=None) -> tuple[str
             
             logger.info(f"Found {len(entries)} total videos from {channel_name}")
             
-            # Filter videos
+            # Filter videos and track reasons
             filtered_videos = []
+            filter_reasons = {
+                'shorts': 0,
+                'livestreams': 0,
+                'missing_data': 0
+            }
             processed_count = 0
             total_count = len(entries)
             
@@ -77,6 +119,7 @@ def scrape_channel_videos(channel_url: str, progress_callback=None) -> tuple[str
                 
                 # Skip if essential data is missing
                 if not video_id or not duration:
+                    filter_reasons['missing_data'] += 1
                     logger.debug(f"Skipping video with missing data: {title}")
                     continue
                 
@@ -87,10 +130,12 @@ def scrape_channel_videos(channel_url: str, progress_callback=None) -> tuple[str
                 
                 # Apply filters
                 if is_short:
+                    filter_reasons['shorts'] += 1
                     logger.debug(f"Filtered out Short: {title} ({duration}s)")
                     continue
                 
                 if is_live or was_live:
+                    filter_reasons['livestreams'] += 1
                     logger.debug(f"Filtered out livestream: {title}")
                     continue
                 
@@ -110,7 +155,12 @@ def scrape_channel_videos(channel_url: str, progress_callback=None) -> tuple[str
                 if progress_callback:
                     progress_callback(total_count, processed_count, len(filtered_videos), title)
             
+            # Log filter breakdown
+            total_filtered = filter_reasons['shorts'] + filter_reasons['livestreams'] + filter_reasons['missing_data']
             logger.info(f"Filtered to {len(filtered_videos)} eligible videos")
+            logger.info(f"Filter breakdown: {filter_reasons['shorts']} Shorts, {filter_reasons['livestreams']} Livestreams, {filter_reasons['missing_data']} Missing Data")
+            logger.info(f"Total: {len(entries)} found, {len(filtered_videos)} eligible, {total_filtered} filtered out")
+            
             return channel_name, filtered_videos
             
     except Exception as e:

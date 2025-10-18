@@ -64,7 +64,38 @@ This single command will install:
 - Node.js 18+
 - All Python dependencies (FastAPI, yt-dlp, etc.)
 
-### 3. Frontend Setup
+### 3. YouTube API Setup (Optional but Recommended)
+
+To fetch ALL videos from a channel (not just ~360), you need a YouTube Data API key:
+
+1. **Go to** [Google Cloud Console](https://console.cloud.google.com/)
+2. **Create a new project** (or select existing)
+3. **Enable YouTube Data API v3**:
+   - Go to "APIs & Services" → "Library"
+   - Search for "YouTube Data API v3"
+   - Click "Enable"
+4. **Create API Key**:
+   - Go to "APIs & Services" → "Credentials"
+   - Click "Create Credentials" → "API Key"
+   - Copy the generated API key
+5. **Add to environment**:
+   ```bash
+   cd backend
+   cp .env.example .env
+   # Edit .env and paste your API key
+   ```
+
+**Benefits:**
+- ✅ Fetch ALL videos (no 360 limit)
+- ✅ Much faster (5 seconds vs 15 minutes)
+- ✅ 10,000 free requests/day
+
+**Without API key:**
+- ⚠️ Limited to ~360 videos per channel
+- ⚠️ Slower scraping
+- ✅ Still works for smaller channels
+
+### 4. Frontend Setup
 
 ```bash
 # Navigate to frontend directory
