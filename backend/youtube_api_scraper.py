@@ -173,16 +173,19 @@ class YouTubeAPIScraper:
                     thumbnail = thumbnails.get('maxres', thumbnails.get('high', thumbnails.get('default', {})))
                     thumbnail_url = thumbnail.get('url', '')
                     
-                    # Detect Shorts by checking if it's a vertical video
-                    # Shorts are vertical (9:16 aspect ratio, height > width)
+                    # Detect Shorts using multiple methods
+                    # Shorts are vertical videos that can be up to 3 minutes (180s)
                     is_short = False
+                    detection_method = None
                     
-                    # Method 1: Check duration (Shorts are typically under 60s, but can be up to 3 minutes)
-                    if duration < 60:
+                    # Method 1: Check duration (Shorts are under 180 seconds as of 2024)
+                    # But we'll be conservative and filter anything under 61 seconds
+                    if duration <= 60:
                         is_short = True
+                        detection_method = f"duration ({duration}s)"
                     
                     # Method 2: Check thumbnail dimensions (Shorts have tall thumbnails)
-                    if thumbnail:
+                    if not is_short and thumbnail:
                         thumb_width = thumbnail.get('width', 0)
                         thumb_height = thumbnail.get('height', 0)
                         if thumb_height > 0 and thumb_width > 0:
@@ -190,7 +193,20 @@ class YouTubeAPIScraper:
                             # Normal videos are 16:9 (1.78), Shorts are 9:16 (0.56)
                             if aspect_ratio < 0.8:  # Vertical video
                                 is_short = True
-                                logger.debug(f"Detected Short by aspect ratio: {title} (ratio: {aspect_ratio:.2f})")
+                                detection_method = f"aspect ratio ({aspect_ratio:.2f})"
+                    
+                    # Method 3: For videos 61-180 seconds, check if they might be Shorts
+                    # by looking at title patterns or other indicators
+                    if not is_short and 61 <= duration <= 180:
+                        # Check if title contains common Short indicators
+                        title_lower = title.lower()
+                        short_indicators = ['#shorts', '#short', 'shorts', '🩳']
+                        if any(indicator in title_lower for indicator in short_indicators):
+                            is_short = True
+                            detection_method = f"title indicator + duration ({duration}s)"
+                    
+                    if is_short and detection_method:
+                        logger.info(f"Filtered Short: '{title}' - detected by {detection_method}")
                     
                     # Apply filters
                     if is_short:
