@@ -4,6 +4,7 @@ Video downloader and MP3 converter using yt-dlp
 import yt_dlp
 import os
 import re
+import time
 from typing import Dict, Callable, Optional
 import logging
 
@@ -12,6 +13,9 @@ logger = logging.getLogger(__name__)
 
 # Output directory for MP3 files
 OUTPUT_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'output')
+
+# Path to cookies file (for YouTube authentication)
+COOKIES_FILE = os.path.join(os.path.dirname(__file__), 'cookies.txt')
 
 
 def sanitize_filename(filename: str) -> str:
@@ -90,6 +94,13 @@ def download_video_as_mp3(
         'no_warnings': False,
     }
     
+    # Add cookies if file exists (for YouTube authentication)
+    if os.path.exists(COOKIES_FILE):
+        ydl_opts['cookiefile'] = COOKIES_FILE
+        logger.info("Using cookies for authentication")
+    else:
+        logger.warning(f"Cookies file not found at {COOKIES_FILE}. Downloads may fail due to bot detection.")
+    
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             logger.info(f"Starting download: {video_url}")
@@ -126,7 +137,8 @@ def download_video_as_mp3(
 
 def download_multiple_videos(
     video_urls: list,
-    progress_callback: Optional[Callable[[int, int, str], None]] = None
+    progress_callback: Optional[Callable[[int, int, str], None]] = None,
+    delay_between_downloads: float = 2.0
 ) -> Dict[str, str]:
     """
     Download multiple videos as MP3.
@@ -134,6 +146,7 @@ def download_multiple_videos(
     Args:
         video_urls: List of YouTube video URLs
         progress_callback: Optional callback(current, total, title)
+        delay_between_downloads: Delay in seconds between downloads (default: 2.0)
         
     Returns:
         Dictionary mapping video URLs to output file paths
@@ -151,9 +164,18 @@ def download_multiple_videos(
             output_file = download_video_as_mp3(url)
             results[url] = output_file
             
+            # Add delay between downloads to avoid rate limiting (except for last video)
+            if idx < total:
+                logger.info(f"Waiting {delay_between_downloads}s before next download...")
+                time.sleep(delay_between_downloads)
+            
         except Exception as e:
             logger.error(f"Failed to download {url}: {str(e)}")
             results[url] = f"ERROR: {str(e)}"
+            
+            # Still add delay after failed downloads to avoid rate limiting
+            if idx < total:
+                time.sleep(delay_between_downloads)
     
     return results
 
