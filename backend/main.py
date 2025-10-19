@@ -17,7 +17,7 @@ from models import (
     FilesResponse
 )
 from video_scraper import scrape_channel_videos
-from downloader import download_video_as_mp3, list_downloaded_files, get_output_directory
+from downloader import download_video_as_mp3, list_downloaded_files, get_output_directory, is_rate_limited
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -177,49 +177,109 @@ async def get_scrape_progress():
 
 async def download_videos_task(video_ids: list):
     """
-    Background task to download videos.
+    Background task to download videos with exponential backoff for rate limiting.
     """
+    import time
+    import random
+    
     download_state["status"] = "downloading"
     download_state["current"] = 0
     download_state["total"] = len(video_ids)
     download_state["completed_videos"] = []
     download_state["failed_videos"] = []
     
+    # Configuration
+    MAX_RETRIES = 4
+    BASE_DELAY = 5.0  # Increased from 2s to 5s
+    MAX_DELAY = 15.0  # Maximum random delay
+    
     for idx, video_id in enumerate(video_ids, 1):
-        try:
-            # Get video metadata
-            video_data = download_state["video_map"].get(video_id)
-            if not video_data:
-                logger.warning(f"Video metadata not found for ID: {video_id}")
-                video_url = f"https://www.youtube.com/watch?v={video_id}"
-                title = video_id
-            else:
-                video_url = video_data["url"]
-                title = video_data["title"]
-            
-            download_state["current"] = idx
-            download_state["current_video"] = title
-            download_state["percentage"] = (idx / len(video_ids)) * 100
-            
-            logger.info(f"Downloading {idx}/{len(video_ids)}: {title}")
-            
-            # Download video with channel name for subfolder organization
-            channel_name = download_state.get("channel_name")
-            output_file = download_video_as_mp3(video_url, channel_name=channel_name)
-            
-            download_state["completed_videos"].append(title)
-            logger.info(f"Successfully downloaded: {title}")
-            
-        except Exception as e:
-            logger.error(f"Failed to download video {video_id}: {str(e)}")
-            download_state["failed_videos"].append(title if 'title' in locals() else video_id)
+        retry_count = 0
+        success = False
+        
+        # Get video metadata
+        video_data = download_state["video_map"].get(video_id)
+        if not video_data:
+            logger.warning(f"Video metadata not found for ID: {video_id}")
+            video_url = f"https://www.youtube.com/watch?v={video_id}"
+            title = video_id
+        else:
+            video_url = video_data["url"]
+            title = video_data["title"]
+        
+        download_state["current"] = idx
+        download_state["current_video"] = title
+        download_state["percentage"] = (idx / len(video_ids)) * 100
+        
+        # Retry loop with exponential backoff
+        while retry_count < MAX_RETRIES and not success:
+            try:
+                if retry_count > 0:
+                    logger.info(f"Retry {retry_count}/{MAX_RETRIES-1} for: {title}")
+                else:
+                    logger.info(f"Downloading {idx}/{len(video_ids)}: {title}")
+                
+                # Download video with channel name for subfolder organization
+                channel_name = download_state.get("channel_name")
+                output_file = download_video_as_mp3(video_url, channel_name=channel_name)
+                
+                download_state["completed_videos"].append(title)
+                logger.info(f"Successfully downloaded: {title}")
+                success = True
+                
+            except Exception as e:
+                error_msg = str(e)
+                logger.error(f"Error downloading {title}: {error_msg}")
+                
+                # Check if rate limited
+                is_limited, suggested_wait = is_rate_limited(error_msg)
+                
+                if is_limited and retry_count < MAX_RETRIES - 1:
+                    # Calculate exponential backoff
+                    # Start with suggested wait or base delay
+                    if suggested_wait > 0:
+                        wait_time = suggested_wait
+                    else:
+                        # Exponential backoff: 5min, 15min, 30min, 60min
+                        wait_time = 300 * (3 ** retry_count)  # 300s = 5 minutes
+                    
+                    logger.warning(f"⚠️  Rate limited! Waiting {wait_time/60:.1f} minutes before retry...")
+                    logger.info(f"Progress: {len(download_state['completed_videos'])}/{len(video_ids)} completed, {idx-len(download_state['completed_videos'])}/{len(video_ids)} remaining")
+                    
+                    # Update status to show waiting
+                    download_state["current_video"] = f"⏳ Waiting {wait_time/60:.0f}min (rate limited)"
+                    
+                    # Wait with progress updates every minute
+                    for remaining in range(int(wait_time), 0, -60):
+                        time.sleep(min(60, remaining))
+                        if remaining > 60:
+                            download_state["current_video"] = f"⏳ Waiting {remaining/60:.0f}min (rate limited)"
+                    
+                    retry_count += 1
+                    download_state["current_video"] = title  # Restore title
+                    logger.info(f"Resuming downloads after rate limit wait...")
+                    
+                else:
+                    # Not rate limited or max retries reached
+                    download_state["failed_videos"].append(title)
+                    if is_limited:
+                        logger.error(f"Max retries reached for {title}. Moving to next video.")
+                    break
+        
+        # Add delay between downloads (with random jitter to appear more human)
+        if idx < len(video_ids) and success:
+            delay = random.uniform(BASE_DELAY, MAX_DELAY)
+            logger.info(f"Waiting {delay:.1f}s before next download...")
+            time.sleep(delay)
     
     # Update final status
     download_state["status"] = "completed"
     download_state["current_video"] = None
     download_state["percentage"] = 100.0
     
-    logger.info(f"Download task completed. Success: {len(download_state['completed_videos'])}, Failed: {len(download_state['failed_videos'])}")
+    logger.info(f"✅ Download task completed!")
+    logger.info(f"Success: {len(download_state['completed_videos'])}/{len(video_ids)}")
+    logger.info(f"Failed: {len(download_state['failed_videos'])}/{len(video_ids)}")
 
 
 @app.post("/api/download", response_model=DownloadResponse)

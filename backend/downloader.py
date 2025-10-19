@@ -5,7 +5,8 @@ import yt_dlp
 import os
 import re
 import time
-from typing import Dict, Callable, Optional
+import random
+from typing import Dict, Callable, Optional, Tuple
 import logging
 
 logging.basicConfig(level=logging.INFO)
@@ -16,6 +17,55 @@ OUTPUT_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'output')
 
 # Path to cookies file (for YouTube authentication)
 COOKIES_FILE = os.path.join(os.path.dirname(__file__), 'cookies.txt')
+
+
+def is_rate_limited(error_msg: str) -> Tuple[bool, int]:
+    """
+    Detect if error is due to rate limiting and extract suggested timeout.
+    
+    Args:
+        error_msg: Error message from yt-dlp
+        
+    Returns:
+        Tuple of (is_rate_limited, suggested_wait_seconds)
+    """
+    error_lower = error_msg.lower()
+    
+    # Check for rate limiting indicators
+    rate_limit_indicators = [
+        "rate-limited",
+        "rate limited",
+        "try again later",
+        "content isn't available",
+        "too many requests",
+        "exceeded the rate limit"
+    ]
+    
+    is_limited = any(indicator in error_lower for indicator in rate_limit_indicators)
+    
+    if not is_limited:
+        return False, 0
+    
+    # Parse timeout duration from error message
+    if "hour" in error_lower:
+        # Extract number of hours if present
+        import re
+        hour_match = re.search(r'(\d+)\s*hour', error_lower)
+        if hour_match:
+            hours = int(hour_match.group(1))
+            return True, hours * 3600
+        return True, 3600  # Default 1 hour
+    
+    if "minute" in error_lower:
+        # Extract number of minutes if present
+        minute_match = re.search(r'(\d+)\s*minute', error_lower)
+        if minute_match:
+            minutes = int(minute_match.group(1))
+            return True, minutes * 60
+        return True, 300  # Default 5 minutes
+    
+    # Default wait time for rate limiting
+    return True, 300  # 5 minutes default
 
 
 def sanitize_filename(filename: str) -> str:
