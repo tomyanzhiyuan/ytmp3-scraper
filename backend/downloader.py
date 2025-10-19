@@ -43,7 +43,8 @@ def sanitize_filename(filename: str) -> str:
 def download_video_as_mp3(
     video_url: str,
     progress_callback: Optional[Callable[[Dict], None]] = None,
-    channel_name: Optional[str] = None
+    channel_name: Optional[str] = None,
+    skip_existing: bool = True
 ) -> str:
     """
     Download a YouTube video and convert it to MP3.
@@ -52,6 +53,7 @@ def download_video_as_mp3(
         video_url: YouTube video URL
         progress_callback: Optional callback function for progress updates
         channel_name: Optional channel name for organizing into subfolders
+        skip_existing: If True, skip download if file already exists (default: True)
         
     Returns:
         Path to the downloaded MP3 file
@@ -68,6 +70,40 @@ def download_video_as_mp3(
     
     # Ensure output directory exists
     os.makedirs(output_dir, exist_ok=True)
+    
+    # Check if file already exists (skip download if requested)
+    if skip_existing:
+        try:
+            # Extract video info to get title without downloading
+            ydl_opts_info = {
+                'quiet': True,
+                'no_warnings': True,
+                'skip_download': True,
+            }
+            
+            # Add cookies if available
+            if os.path.exists(COOKIES_FILE):
+                ydl_opts_info['cookiefile'] = COOKIES_FILE
+            
+            with yt_dlp.YoutubeDL(ydl_opts_info) as ydl:
+                info = ydl.extract_info(video_url, download=False)
+                title = info.get('title', 'Unknown')
+                sanitized_title = sanitize_filename(title)
+                expected_file = os.path.join(output_dir, f"{sanitized_title}.mp3")
+                
+                # Check if file exists
+                if os.path.exists(expected_file):
+                    logger.info(f"File already exists, skipping download: {sanitized_title}.mp3")
+                    return expected_file
+                
+                # Also check for similar filenames (in case of slight variations)
+                for existing_file in os.listdir(output_dir):
+                    if existing_file.endswith('.mp3') and sanitized_title.lower() in existing_file.lower():
+                        logger.info(f"Similar file found, skipping download: {existing_file}")
+                        return os.path.join(output_dir, existing_file)
+        
+        except Exception as e:
+            logger.debug(f"Could not check for existing file: {e}. Proceeding with download.")
     
     def progress_hook(d):
         """Hook for yt-dlp progress updates"""
@@ -120,15 +156,38 @@ def download_video_as_mp3(
             if os.path.exists(output_file):
                 logger.info(f"Successfully downloaded: {output_file}")
                 return output_file
-            else:
-                # Try to find the file with similar name
-                for file in os.listdir(output_dir):
-                    if file.endswith('.mp3') and sanitized_title.lower() in file.lower():
-                        output_file = os.path.join(output_dir, file)
-                        logger.info(f"Found downloaded file: {output_file}")
-                        return output_file
+            
+            # Try to find the file with similar name (fuzzy matching)
+            # This handles cases where yt-dlp uses different sanitization than our function
+            if os.path.exists(output_dir):
+                mp3_files = [f for f in os.listdir(output_dir) if f.endswith('.mp3')]
                 
-                raise Exception(f"Downloaded file not found: {output_file}")
+                # Sort by modification time (newest first)
+                mp3_files.sort(key=lambda x: os.path.getmtime(os.path.join(output_dir, x)), reverse=True)
+                
+                # Check for fuzzy match with the title
+                for file in mp3_files:
+                    # Remove .mp3 extension and compare
+                    file_base = file[:-4]
+                    
+                    # Try multiple matching strategies
+                    # 1. Check if sanitized title is in filename
+                    if sanitized_title.lower() in file_base.lower():
+                        output_file = os.path.join(output_dir, file)
+                        logger.info(f"Found downloaded file (fuzzy match): {output_file}")
+                        return output_file
+                    
+                    # 2. Check if most words from title are in filename
+                    title_words = set(sanitized_title.lower().split())
+                    file_words = set(file_base.lower().split())
+                    if len(title_words) > 0:
+                        match_ratio = len(title_words & file_words) / len(title_words)
+                        if match_ratio > 0.7:  # 70% word match
+                            output_file = os.path.join(output_dir, file)
+                            logger.info(f"Found downloaded file (word match {match_ratio:.0%}): {output_file}")
+                            return output_file
+            
+            raise Exception(f"Downloaded file not found. Expected: {output_file}")
                 
     except Exception as e:
         logger.error(f"Error downloading video: {str(e)}")
