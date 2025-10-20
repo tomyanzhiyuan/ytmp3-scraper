@@ -100,6 +100,8 @@ async def scrape_channel_task(channel_url: str):
         
         # Store channel name and video metadata in global state for later download
         download_state["channel_name"] = channel_name
+        logger.info(f"📁 Stored channel name for downloads: '{channel_name}'")
+        
         for video in videos:
             download_state["video_map"][video["id"]] = video
         
@@ -111,7 +113,7 @@ async def scrape_channel_task(channel_url: str):
         scrape_state["status"] = "completed"
         scrape_state["current_video"] = None
         
-        logger.info(f"Scraping completed: {len(videos)} videos found")
+        logger.info(f"Scraping completed: {len(videos)} videos found for channel '{channel_name}'")
         
     except Exception as e:
         logger.error(f"Error in scrape task: {str(e)}")
@@ -213,6 +215,15 @@ async def download_videos_task(video_ids: list):
         
         # PRE-CHECK: Check if file already exists BEFORE making any API calls
         channel_name = download_state.get("channel_name")
+        
+        # Debug logging
+        if idx == 1:  # Log once at start
+            logger.info(f"📁 Using channel name for downloads: '{channel_name}'")
+            if channel_name:
+                logger.info(f"📂 Files will be saved to: output/{channel_name}/")
+            else:
+                logger.warning("⚠️  No channel name set! Files will be saved to: output/")
+        
         file_exists, existing_path = check_file_exists(title, channel_name)
         
         if file_exists:
