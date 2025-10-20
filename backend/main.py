@@ -17,7 +17,7 @@ from models import (
     FilesResponse
 )
 from video_scraper import scrape_channel_videos
-from downloader import download_video_as_mp3, list_downloaded_files, get_output_directory, is_rate_limited
+from downloader import download_video_as_mp3, list_downloaded_files, get_output_directory, is_rate_limited, check_file_exists
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -211,6 +211,17 @@ async def download_videos_task(video_ids: list):
         download_state["current_video"] = title
         download_state["percentage"] = (idx / len(video_ids)) * 100
         
+        # PRE-CHECK: Check if file already exists BEFORE making any API calls
+        channel_name = download_state.get("channel_name")
+        file_exists, existing_path = check_file_exists(title, channel_name)
+        
+        if file_exists:
+            logger.info(f"✓ Already downloaded ({idx}/{len(video_ids)}): {title}")
+            download_state["completed_videos"].append(title)
+            success = True
+            # Skip to next video immediately (no delay needed for skipped files)
+            continue
+        
         # Retry loop with exponential backoff
         while retry_count < MAX_RETRIES and not success:
             try:
@@ -220,7 +231,6 @@ async def download_videos_task(video_ids: list):
                     logger.info(f"Downloading {idx}/{len(video_ids)}: {title}")
                 
                 # Download video with channel name for subfolder organization
-                channel_name = download_state.get("channel_name")
                 output_file = download_video_as_mp3(video_url, channel_name=channel_name)
                 
                 download_state["completed_videos"].append(title)

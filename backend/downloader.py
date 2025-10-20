@@ -90,6 +90,59 @@ def sanitize_filename(filename: str) -> str:
     return filename
 
 
+def check_file_exists(title: str, channel_name: Optional[str] = None) -> Tuple[bool, Optional[str]]:
+    """
+    Check if a video file already exists without making any API calls.
+    
+    Args:
+        title: Video title
+        channel_name: Optional channel name for subfolder
+        
+    Returns:
+        Tuple of (exists, filepath) - filepath is None if not found
+    """
+    # Determine output directory
+    output_dir = OUTPUT_DIR
+    if channel_name:
+        safe_channel_name = sanitize_filename(channel_name)
+        output_dir = os.path.join(OUTPUT_DIR, safe_channel_name)
+    
+    if not os.path.exists(output_dir):
+        return False, None
+    
+    # Sanitize title for comparison
+    sanitized_title = sanitize_filename(title)
+    expected_file = os.path.join(output_dir, f"{sanitized_title}.mp3")
+    
+    # Check exact match
+    if os.path.exists(expected_file):
+        return True, expected_file
+    
+    # Check for fuzzy match (handles special characters)
+    try:
+        for existing_file in os.listdir(output_dir):
+            if not existing_file.endswith('.mp3'):
+                continue
+            
+            file_base = existing_file[:-4]
+            
+            # Check if sanitized title is in filename
+            if sanitized_title.lower() in file_base.lower():
+                return True, os.path.join(output_dir, existing_file)
+            
+            # Check word-based match
+            title_words = set(sanitized_title.lower().split())
+            file_words = set(file_base.lower().split())
+            if len(title_words) > 0:
+                match_ratio = len(title_words & file_words) / len(title_words)
+                if match_ratio > 0.7:  # 70% word match
+                    return True, os.path.join(output_dir, existing_file)
+    except Exception as e:
+        logger.debug(f"Error checking for existing file: {e}")
+    
+    return False, None
+
+
 def download_video_as_mp3(
     video_url: str,
     progress_callback: Optional[Callable[[Dict], None]] = None,
