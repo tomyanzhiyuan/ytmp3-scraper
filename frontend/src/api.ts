@@ -23,6 +23,7 @@ export interface VideoMetadata {
 
 export type VideoType = 'all' | 'shorts' | 'videos';
 export type TimeFrame = 'all' | 'week' | 'month' | 'year';
+export type DownloadFormat = 'mp3' | 'mp4';
 
 export interface ScrapeResponse {
   videos: VideoMetadata[];
@@ -83,11 +84,15 @@ export const getScrapeProgress = async (): Promise<ScrapeProgress> => {
 };
 
 /**
- * Start downloading selected videos
+ * Start downloading selected videos in the specified format
  */
-export const downloadVideos = async (videoIds: string[]): Promise<void> => {
+export const downloadVideos = async (
+  videoIds: string[],
+  format: DownloadFormat = 'mp3'
+): Promise<void> => {
   await api.post('/api/download', {
     video_ids: videoIds,
+    format: format,
   });
 };
 

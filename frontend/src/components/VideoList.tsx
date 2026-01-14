@@ -1,16 +1,24 @@
 /**
- * Video list component with selection
+ * Video list component with selection and format choice
  */
 import { useState, useEffect } from 'react';
-import { VideoMetadata } from '../api';
+import { VideoMetadata, DownloadFormat } from '../api';
 
 interface VideoListProps {
   videos: VideoMetadata[];
-  onDownload: (videoIds: string[]) => void;
+  onDownload: (videoIds: string[], format: DownloadFormat) => void;
   isDownloading: boolean;
+  downloadFormat: DownloadFormat;
+  onFormatChange: (format: DownloadFormat) => void;
 }
 
-export default function VideoList({ videos, onDownload, isDownloading }: VideoListProps) {
+export default function VideoList({
+  videos,
+  onDownload,
+  isDownloading,
+  downloadFormat,
+  onFormatChange,
+}: VideoListProps) {
   const [selectedVideos, setSelectedVideos] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -37,12 +45,15 @@ export default function VideoList({ videos, onDownload, isDownloading }: VideoLi
 
   const handleDownloadSelected = () => {
     if (selectedVideos.size > 0) {
-      onDownload(Array.from(selectedVideos));
+      onDownload(Array.from(selectedVideos), downloadFormat);
     }
   };
 
   const handleDownloadAll = () => {
-    onDownload(videos.map((v) => v.id));
+    onDownload(
+      videos.map((v) => v.id),
+      downloadFormat
+    );
   };
 
   const formatDuration = (seconds: number): string => {
@@ -83,8 +94,30 @@ export default function VideoList({ videos, onDownload, isDownloading }: VideoLi
         </div>
       </div>
 
-      {/* Action Buttons */}
-      <div className="mb-5 flex gap-3">
+      {/* Format Selector & Action Buttons */}
+      <div className="mb-5 flex items-center gap-3">
+        {/* Format Toggle */}
+        <div className="flex overflow-hidden rounded-lg border border-white/10 bg-[#1a1a24]">
+          <button
+            onClick={() => onFormatChange('mp3')}
+            disabled={isDownloading}
+            className={`px-4 py-2.5 text-sm font-medium transition-colors ${
+              downloadFormat === 'mp3' ? 'bg-white text-black' : 'text-slate-400 hover:text-white'
+            } disabled:cursor-not-allowed`}
+          >
+            MP3
+          </button>
+          <button
+            onClick={() => onFormatChange('mp4')}
+            disabled={isDownloading}
+            className={`px-4 py-2.5 text-sm font-medium transition-colors ${
+              downloadFormat === 'mp4' ? 'bg-white text-black' : 'text-slate-400 hover:text-white'
+            } disabled:cursor-not-allowed`}
+          >
+            MP4
+          </button>
+        </div>
+
         <button
           onClick={handleDownloadSelected}
           disabled={selectedVideos.size === 0 || isDownloading}

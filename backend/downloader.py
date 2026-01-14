@@ -1,5 +1,6 @@
 """
-Video downloader and MP3 converter using yt-dlp
+Video downloader and converter using yt-dlp
+Supports MP3 (audio) and MP4 (video) formats
 """
 
 import logging
@@ -13,7 +14,7 @@ import yt_dlp
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Output directory for MP3 files
+# Output directory for downloaded files
 OUTPUT_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "output")
 
 # Path to cookies file (for YouTube authentication)
@@ -145,27 +146,36 @@ def check_file_exists(title: str, channel_name: str | None = None) -> tuple[bool
     return False, None
 
 
-def download_video_as_mp3(
+def download_video(
     video_url: str,
+    format: str = "mp3",
     progress_callback: Callable[[dict], None] | None = None,
     channel_name: str | None = None,
     skip_existing: bool = True,
 ) -> str:
     """
-    Download a YouTube video and convert it to MP3.
+    Download a YouTube video in the specified format.
 
     Args:
         video_url: YouTube video URL
+        format: Output format - "mp3" for audio, "mp4" for video (default: "mp3")
         progress_callback: Optional callback function for progress updates
         channel_name: Optional channel name for organizing into subfolders
         skip_existing: If True, skip download if file already exists (default: True)
 
     Returns:
-        Path to the downloaded MP3 file
+        Path to the downloaded file
 
     Raises:
         Exception: If download fails
     """
+    # Validate format
+    format = format.lower()
+    if format not in ("mp3", "mp4"):
+        raise ValueError(f"Unsupported format: {format}. Use 'mp3' or 'mp4'.")
+
+    file_extension = format
+
     # Determine output directory (with channel subfolder if provided)
     output_dir = OUTPUT_DIR
     if channel_name:
@@ -194,16 +204,19 @@ def download_video_as_mp3(
                 info = ydl.extract_info(video_url, download=False)
                 title = info.get("title", "Unknown")
                 sanitized_title = sanitize_filename(title)
-                expected_file = os.path.join(output_dir, f"{sanitized_title}.mp3")
+                expected_file = os.path.join(output_dir, f"{sanitized_title}.{file_extension}")
 
                 # Check if file exists
                 if os.path.exists(expected_file):
-                    logger.info(f"File already exists, skipping download: {sanitized_title}.mp3")
+                    logger.info(f"File already exists, skipping download: {sanitized_title}.{file_extension}")
                     return expected_file
 
                 # Also check for similar filenames (in case of slight variations)
                 for existing_file in os.listdir(output_dir):
-                    if existing_file.endswith(".mp3") and sanitized_title.lower() in existing_file.lower():
+                    if (
+                        existing_file.endswith(f".{file_extension}")
+                        and sanitized_title.lower() in existing_file.lower()
+                    ):
                         logger.info(f"Similar file found, skipping download: {existing_file}")
                         return os.path.join(output_dir, existing_file)
 
@@ -220,22 +233,36 @@ def download_video_as_mp3(
             speed = d.get("_speed_str", "N/A")
             logger.info(f"Downloading: {percent} at {speed}")
         elif d["status"] == "finished":
-            logger.info("Download finished, converting to MP3...")
+            if format == "mp3":
+                logger.info("Download finished, converting to MP3...")
+            else:
+                logger.info("Download finished!")
 
-    ydl_opts = {
-        "format": "bestaudio/best",
-        "postprocessors": [
-            {
-                "key": "FFmpegExtractAudio",
-                "preferredcodec": "mp3",
-                "preferredquality": "320",
-            }
-        ],
-        "outtmpl": os.path.join(output_dir, "%(title)s.%(ext)s"),
-        "progress_hooks": [progress_hook],
-        "quiet": False,
-        "no_warnings": False,
-    }
+    # Configure yt-dlp options based on format
+    if format == "mp3":
+        ydl_opts = {
+            "format": "bestaudio/best",
+            "postprocessors": [
+                {
+                    "key": "FFmpegExtractAudio",
+                    "preferredcodec": "mp3",
+                    "preferredquality": "320",
+                }
+            ],
+            "outtmpl": os.path.join(output_dir, "%(title)s.%(ext)s"),
+            "progress_hooks": [progress_hook],
+            "quiet": False,
+            "no_warnings": False,
+        }
+    else:  # mp4
+        ydl_opts = {
+            "format": "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
+            "merge_output_format": "mp4",
+            "outtmpl": os.path.join(output_dir, "%(title)s.%(ext)s"),
+            "progress_hooks": [progress_hook],
+            "quiet": False,
+            "no_warnings": False,
+        }
 
     # Add cookies if file exists (for YouTube authentication)
     if os.path.exists(COOKIES_FILE):
@@ -246,7 +273,7 @@ def download_video_as_mp3(
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            logger.info(f"Starting download: {video_url}")
+            logger.info(f"Starting download ({format.upper()}): {video_url}")
 
             # Extract info first
             info = ydl.extract_info(video_url, download=False)
@@ -257,7 +284,7 @@ def download_video_as_mp3(
 
             # Construct expected output filename
             sanitized_title = sanitize_filename(title)
-            output_file = os.path.join(output_dir, f"{sanitized_title}.mp3")
+            output_file = os.path.join(output_dir, f"{sanitized_title}.{file_extension}")
 
             # Check if file exists
             if os.path.exists(output_file):
@@ -267,15 +294,15 @@ def download_video_as_mp3(
             # Try to find the file with similar name (fuzzy matching)
             # This handles cases where yt-dlp uses different sanitization than our function
             if os.path.exists(output_dir):
-                mp3_files = [f for f in os.listdir(output_dir) if f.endswith(".mp3")]
+                matching_files = [f for f in os.listdir(output_dir) if f.endswith(f".{file_extension}")]
 
                 # Sort by modification time (newest first)
-                mp3_files.sort(key=lambda x: os.path.getmtime(os.path.join(output_dir, x)), reverse=True)
+                matching_files.sort(key=lambda x: os.path.getmtime(os.path.join(output_dir, x)), reverse=True)
 
                 # Check for fuzzy match with the title
-                for file in mp3_files:
-                    # Remove .mp3 extension and compare
-                    file_base = file[:-4]
+                for file in matching_files:
+                    # Remove extension and compare
+                    file_base = file[: -(len(file_extension) + 1)]
 
                     # Try multiple matching strategies
                     # 1. Check if sanitized title is in filename
@@ -299,6 +326,17 @@ def download_video_as_mp3(
     except Exception as e:
         logger.error(f"Error downloading video: {str(e)}")
         raise Exception(f"Failed to download video: {str(e)}") from e
+
+
+# Alias for backward compatibility
+def download_video_as_mp3(
+    video_url: str,
+    progress_callback: Callable[[dict], None] | None = None,
+    channel_name: str | None = None,
+    skip_existing: bool = True,
+) -> str:
+    """Backward compatible alias for download_video with mp3 format."""
+    return download_video(video_url, "mp3", progress_callback, channel_name, skip_existing)
 
 
 def download_multiple_videos(
@@ -348,15 +386,16 @@ def download_multiple_videos(
 
 def list_downloaded_files() -> list:
     """
-    List all MP3 files in the output directory.
+    List all downloaded files (MP3 and MP4) in the output directory.
 
     Returns:
-        List of MP3 filenames
+        List of filenames
     """
     if not os.path.exists(OUTPUT_DIR):
         return []
 
-    files = [f for f in os.listdir(OUTPUT_DIR) if f.endswith(".mp3")]
+    # Include both MP3 and MP4 files
+    files = [f for f in os.listdir(OUTPUT_DIR) if f.endswith((".mp3", ".mp4"))]
     files.sort(key=lambda x: os.path.getmtime(os.path.join(OUTPUT_DIR, x)), reverse=True)
 
     return files

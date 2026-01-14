@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from downloader import (
     check_file_exists,
-    download_video_as_mp3,
+    download_video,
     get_output_directory,
     is_rate_limited,
     list_downloaded_files,
@@ -182,9 +182,13 @@ async def get_scrape_progress():
     return response
 
 
-async def download_videos_task(video_ids: list):
+async def download_videos_task(video_ids: list, format: str = "mp3"):
     """
     Background task to download videos with exponential backoff for rate limiting.
+
+    Args:
+        video_ids: List of YouTube video IDs to download
+        format: Download format - "mp3" for audio, "mp4" for video
     """
     import random
     import time
@@ -194,6 +198,7 @@ async def download_videos_task(video_ids: list):
     download_state["total"] = len(video_ids)
     download_state["completed_videos"] = []
     download_state["failed_videos"] = []
+    download_state["format"] = format
 
     # Configuration
     MAX_RETRIES = 4
@@ -247,7 +252,7 @@ async def download_videos_task(video_ids: list):
                     logger.info(f"Downloading {idx}/{len(video_ids)}: {title}")
 
                 # Download video with channel name for subfolder organization
-                download_video_as_mp3(video_url, channel_name=channel_name)
+                download_video(video_url, format=format, channel_name=channel_name)
 
                 download_state["completed_videos"].append(title)
                 logger.info(f"Successfully downloaded: {title}")
@@ -313,7 +318,7 @@ async def download_videos_task(video_ids: list):
 @app.post("/api/download", response_model=DownloadResponse)
 async def download_videos(request: DownloadRequest, background_tasks: BackgroundTasks):
     """
-    Download selected videos as MP3 files.
+    Download selected videos in the specified format.
     Downloads happen in the background.
     """
     try:
@@ -323,12 +328,13 @@ async def download_videos(request: DownloadRequest, background_tasks: Background
         if download_state["status"] == "downloading":
             raise HTTPException(status_code=409, detail="Download already in progress")
 
-        logger.info(f"Starting download for {len(request.video_ids)} videos")
+        format_str = request.format.value  # Get string value from enum
+        logger.info(f"Starting {format_str.upper()} download for {len(request.video_ids)} videos")
 
-        # Start background download task
-        background_tasks.add_task(download_videos_task, request.video_ids)
+        # Start background download task with format
+        background_tasks.add_task(download_videos_task, request.video_ids, format_str)
 
-        return DownloadResponse(message="Download started", total=len(request.video_ids))
+        return DownloadResponse(message=f"{format_str.upper()} download started", total=len(request.video_ids))
 
     except HTTPException:
         raise

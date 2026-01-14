@@ -24,6 +24,13 @@ class TimeFrame(str, Enum):
     YEAR = "year"
 
 
+class DownloadFormat(str, Enum):
+    """Download format options"""
+
+    MP3 = "mp3"
+    MP4 = "mp4"
+
+
 class ChannelRequest(BaseModel):
     """Request model for channel scraping"""
 
@@ -54,6 +61,7 @@ class DownloadRequest(BaseModel):
     """Request model for download endpoint"""
 
     video_ids: list[str] = Field(..., description="List of video IDs to download")
+    format: DownloadFormat = Field(default=DownloadFormat.MP3, description="Download format (mp3 or mp4)")
 
 
 class DownloadResponse(BaseModel):
@@ -78,5 +86,5 @@ class DownloadProgress(BaseModel):
 class FilesResponse(BaseModel):
     """Response model for files endpoint"""
 
-    files: list[str] = Field(..., description="List of downloaded MP3 files")
+    files: list[str] = Field(..., description="List of downloaded files (MP3/MP4)")
     total: int = Field(..., description="Total number of files")

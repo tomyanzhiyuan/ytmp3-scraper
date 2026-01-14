@@ -16,11 +16,13 @@ import {
   ScrapeProgress as ScrapeProgressType,
   VideoType,
   TimeFrame,
+  DownloadFormat,
 } from './api';
 
 function App() {
   const [videos, setVideos] = useState<VideoMetadata[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [downloadFormat, setDownloadFormat] = useState<DownloadFormat>('mp3');
   const [progress, setProgress] = useState<ProgressType>({
     current: 0,
     total: 0,
@@ -113,11 +115,11 @@ function App() {
     }
   };
 
-  const handleDownload = async (videoIds: string[]) => {
+  const handleDownload = async (videoIds: string[], format: DownloadFormat) => {
     setError(null);
 
     try {
-      await downloadVideos(videoIds);
+      await downloadVideos(videoIds, format);
       setProgress({
         current: 0,
         total: videoIds.length,
@@ -164,6 +166,8 @@ function App() {
             videos={videos}
             onDownload={handleDownload}
             isDownloading={progress.status === 'downloading'}
+            downloadFormat={downloadFormat}
+            onFormatChange={setDownloadFormat}
           />
         )}
 
