@@ -1,37 +1,42 @@
 <div align="center">
 
-# 🎵 YouTube MP3 Scraper
+# 🎵 YouTube to MP3
 
 [![CI](https://github.com/tomyanzhiyuan/ytmp3-scraper/actions/workflows/ci.yml/badge.svg)](https://github.com/tomyanzhiyuan/ytmp3-scraper/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![Node.js 18+](https://img.shields.io/badge/node.js-18+-green.svg)](https://nodejs.org/)
 [![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](https://www.docker.com/)
+[![Tests](https://img.shields.io/badge/tests-72%20passed-brightgreen.svg)](https://github.com/tomyanzhiyuan/ytmp3-scraper/actions)
 
-**A full-stack web application that scrapes YouTube channels, filters videos, and downloads them as high-quality MP3 files.**
+**Download audio from YouTube channels as MP3 files. Filter by content type (videos/shorts) and time frame.**
 
 [Features](#-features) • [Quick Start](#-quick-start) • [Installation](#-installation) • [Usage](#-usage) • [API](#-api-endpoints) • [Contributing](#-contributing)
 
 <img src="https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white" alt="FastAPI" />
 <img src="https://img.shields.io/badge/React-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="React" />
 <img src="https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript" />
-<img src="https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white" alt="Tailwind CSS" />
+<img src="https://img.shields.io/badge/yt--dlp-FF0000?style=for-the-badge&logo=youtube&logoColor=white" alt="yt-dlp" />
 
 </div>
 
 ---
 
+> ⚠️ **Disclaimer**: This tool is for **personal and educational use only**. Respect copyright laws and YouTube's Terms of Service. See [DISCLAIMER.md](DISCLAIMER.md) for full legal notice.
+
+---
+
 ## ✨ Features
 
-- 🚀 **Complete Channel Scraping**: Uses YouTube Data API v3 to fetch ALL videos (no 360 limit!)
-- 🎯 **Advanced Short Detection**: 3-method filtering (duration, aspect ratio, title patterns)
-- ⏱️ **Duration Filter**: Only downloads videos longer than 1 minute
+- 🎯 **Content Type Filtering**: Choose between Videos only, Shorts only, or All content
+- ⏱️ **Time Frame Filtering**: Last week, month, year, or all time
+- 🔍 **Accurate Short Detection**: Verified via YouTube's `/shorts/` URL (no false positives)
+- 🚀 **Complete Channel Scraping**: Uses YouTube Data API v3 to fetch ALL videos (no limits!)
 - 🎵 **High-Quality Audio**: Downloads and converts to 320kbps MP3
-- 🖥️ **Modern UI**: Clean, responsive React interface with Tailwind CSS
-- 📊 **Real-time Progress**: Live scraping and download progress updates
+- 🖥️ **Clean UI**: Minimalistic React interface with real-time progress
 - ✅ **Selective Downloads**: Choose specific videos or download all at once
-- � **Smart Fallback**: Automatically falls back to yt-dlp if no API key provided
-- 📝 **Transparent Logging**: See exactly why each video was filtered
+- 🔄 **Smart Fallback**: Automatically falls back to yt-dlp if no API key
+- 🧪 **Well Tested**: 72+ unit tests covering all edge cases
 
 ## 🛠️ Tech Stack
 
@@ -397,13 +402,41 @@ If you need to update Python packages:
 - Backend: Change port in uvicorn command: `--port 8001`
 - Frontend: Vite will automatically try the next available port
 
-## 🔒 Security Notes
+## 🧪 Testing
 
-- This tool is for personal use only
-- Respect YouTube's Terms of Service
-- Only download content you have rights to
-- Be mindful of copyright laws in your jurisdiction
-- Rate limiting is recommended for production use
+Run the test suite to verify everything works:
+
+```bash
+# Run all tests
+cd backend
+python -m pytest tests/ -v
+
+# Run with coverage
+python -m pytest tests/ -v --cov=. --cov-report=term-missing
+
+# Run specific test class
+python -m pytest tests/test_short_detection.py::TestShortDetection -v
+```
+
+**Test Coverage:**
+- Short detection (12 tests)
+- Channel resolution (10 tests)
+- Time frame filtering (5 tests)
+- Duration parsing (8 tests)
+- Video filtering logic (5 tests)
+- URL parsing edge cases (11 tests)
+- API error handling (3 tests)
+- And more...
+
+## 🔒 Legal & Security
+
+> ⚠️ **Read the full [DISCLAIMER.md](DISCLAIMER.md) before using this tool.**
+
+- **Personal use only** - Do not use for commercial purposes
+- **Respect copyright** - Only download content you have rights to
+- **Terms of Service** - Usage may violate YouTube's ToS
+- **Your responsibility** - You are liable for how you use this tool
+- **No secrets in repo** - API keys are gitignored, use `.env` files
 
 ## 📝 License
 
