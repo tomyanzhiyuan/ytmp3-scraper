@@ -1,13 +1,31 @@
 """
 Pydantic models for request/response validation
 """
-from typing import List, Optional
-from pydantic import BaseModel, HttpUrl, Field
+from typing import List, Optional, Literal
+from pydantic import BaseModel, Field
+from enum import Enum
+
+
+class VideoType(str, Enum):
+    """Video type filter options"""
+    ALL = "all"  # Both shorts and long videos
+    SHORTS = "shorts"  # Only shorts
+    VIDEOS = "videos"  # Only long-form videos
+
+
+class TimeFrame(str, Enum):
+    """Time frame filter options"""
+    ALL = "all"
+    WEEK = "week"
+    MONTH = "month"
+    YEAR = "year"
 
 
 class ChannelRequest(BaseModel):
     """Request model for channel scraping"""
     channel_url: str = Field(..., description="YouTube channel URL")
+    video_type: VideoType = Field(default=VideoType.VIDEOS, description="Filter by video type")
+    time_frame: TimeFrame = Field(default=TimeFrame.ALL, description="Filter by time frame")
 
 
 class VideoMetadata(BaseModel):

@@ -4,6 +4,7 @@ YouTube Data API v3 scraper for getting channel videos
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from typing import List, Dict, Optional
+from datetime import datetime, timedelta
 import logging
 import os
 from dotenv import load_dotenv
@@ -13,6 +14,18 @@ load_dotenv()
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+def get_time_cutoff(time_frame: str) -> Optional[datetime]:
+    """Get the cutoff datetime for a time frame filter"""
+    now = datetime.utcnow()
+    if time_frame == "week":
+        return now - timedelta(days=7)
+    elif time_frame == "month":
+        return now - timedelta(days=30)
+    elif time_frame == "year":
+        return now - timedelta(days=365)
+    return None  # "all" - no cutoff
 
 
 class YouTubeAPIScraper:
@@ -41,50 +54,94 @@ class YouTubeAPIScraper:
         Returns:
             Channel ID
         """
-        # Handle @username format
-        if '@' in channel_url:
-            username = channel_url.split('@')[-1].split('/')[0]
-            try:
-                request = self.youtube.search().list(
-                    part='snippet',
-                    q=username,
-                    type='channel',
-                    maxResults=1
-                )
-                response = request.execute()
-                if response['items']:
-                    return response['items'][0]['snippet']['channelId']
-            except HttpError as e:
-                logger.error(f"Error finding channel: {e}")
-                raise
-        
-        # Handle /channel/ID format
+        # Handle /channel/ID format (direct channel ID)
         if '/channel/' in channel_url:
-            return channel_url.split('/channel/')[-1].split('/')[0]
+            return channel_url.split('/channel/')[-1].split('/')[0].split('?')[0]
         
-        # Handle /c/ or /user/ format
-        if '/c/' in channel_url or '/user/' in channel_url:
-            username = channel_url.split('/')[-1]
+        # Handle @username format - use forHandle for exact lookup
+        if '@' in channel_url:
+            handle = channel_url.split('@')[-1].split('/')[0].split('?')[0]
             try:
-                request = self.youtube.search().list(
+                # Use forHandle for exact handle lookup (not search!)
+                request = self.youtube.channels().list(
                     part='snippet',
-                    q=username,
-                    type='channel',
-                    maxResults=1
+                    forHandle=handle
                 )
                 response = request.execute()
-                if response['items']:
-                    return response['items'][0]['snippet']['channelId']
+                if response.get('items'):
+                    channel_id = response['items'][0]['id']
+                    channel_name = response['items'][0]['snippet']['title']
+                    logger.info(f"Resolved @{handle} -> {channel_name} (ID: {channel_id})")
+                    return channel_id
+                else:
+                    raise ValueError(f"Channel with handle @{handle} not found")
             except HttpError as e:
-                logger.error(f"Error finding channel: {e}")
+                logger.error(f"Error finding channel by handle @{handle}: {e}")
                 raise
         
-        raise ValueError(f"Could not extract channel ID from URL: {channel_url}")
+        # Handle /c/ custom URL format
+        if '/c/' in channel_url:
+            custom_name = channel_url.split('/c/')[-1].split('/')[0].split('?')[0]
+            try:
+                # Try to find by custom URL - unfortunately API doesn't have direct lookup
+                # So we search but verify the customUrl matches exactly
+                request = self.youtube.search().list(
+                    part='snippet',
+                    q=custom_name,
+                    type='channel',
+                    maxResults=5
+                )
+                response = request.execute()
+                
+                # Verify we found an exact match
+                for item in response.get('items', []):
+                    channel_id = item['snippet']['channelId']
+                    # Fetch full channel info to check customUrl
+                    channel_request = self.youtube.channels().list(
+                        part='snippet',
+                        id=channel_id
+                    )
+                    channel_response = channel_request.execute()
+                    if channel_response.get('items'):
+                        channel_info = channel_response['items'][0]['snippet']
+                        custom_url = channel_info.get('customUrl', '').lower()
+                        if custom_url == f'@{custom_name.lower()}' or custom_name.lower() in custom_url:
+                            logger.info(f"Resolved /c/{custom_name} -> {channel_info['title']} (ID: {channel_id})")
+                            return channel_id
+                
+                raise ValueError(f"Channel with custom URL /c/{custom_name} not found")
+            except HttpError as e:
+                logger.error(f"Error finding channel by custom URL /c/{custom_name}: {e}")
+                raise
+        
+        # Handle /user/ format - use forUsername for exact lookup
+        if '/user/' in channel_url:
+            username = channel_url.split('/user/')[-1].split('/')[0].split('?')[0]
+            try:
+                request = self.youtube.channels().list(
+                    part='snippet',
+                    forUsername=username
+                )
+                response = request.execute()
+                if response.get('items'):
+                    channel_id = response['items'][0]['id']
+                    channel_name = response['items'][0]['snippet']['title']
+                    logger.info(f"Resolved /user/{username} -> {channel_name} (ID: {channel_id})")
+                    return channel_id
+                else:
+                    raise ValueError(f"Channel with username {username} not found")
+            except HttpError as e:
+                logger.error(f"Error finding channel by username {username}: {e}")
+                raise
+        
+        raise ValueError(f"Could not extract channel ID from URL: {channel_url}. Supported formats: @handle, /channel/ID, /c/customUrl, /user/username")
     
     def scrape_channel_videos(
         self, 
         channel_url: str, 
-        progress_callback=None
+        progress_callback=None,
+        video_type: str = "videos",
+        time_frame: str = "all"
     ) -> tuple[str, List[Dict]]:
         """
         Scrape all videos from a YouTube channel
@@ -92,6 +149,8 @@ class YouTubeAPIScraper:
         Args:
             channel_url: YouTube channel URL
             progress_callback: Optional callback function(total, processed, filtered, current_title)
+            video_type: "all", "shorts", or "videos"
+            time_frame: "all", "week", "month", or "year"
             
         Returns:
             Tuple of (channel_name, list of video metadata dictionaries)
@@ -110,50 +169,71 @@ class YouTubeAPIScraper:
             channel_name = channel_response['items'][0]['snippet']['title']
             
             logger.info(f"Scraping channel: {channel_name}")
+            logger.info(f"Filters: video_type={video_type}, time_frame={time_frame}")
             
             # Get the channel's uploads playlist ID
             uploads_playlist_id = channel_response['items'][0]['contentDetails']['relatedPlaylists']['uploads']
             logger.info(f"Uploads playlist ID: {uploads_playlist_id}")
             
-            # Get all videos from the uploads playlist
-            all_videos = []
-            next_page_token = None
+            # Get time cutoff
+            time_cutoff = get_time_cutoff(time_frame)
+            if time_cutoff:
+                logger.info(f"Time cutoff: {time_cutoff.isoformat()}")
             
-            while True:
+            # Get all videos from the uploads playlist
+            all_video_ids = []
+            next_page_token = None
+            stop_fetching = False
+            
+            while not stop_fetching:
                 # Get videos from uploads playlist (50 per page, max allowed by API)
                 request = self.youtube.playlistItems().list(
-                    part='contentDetails',
+                    part='contentDetails,snippet',
                     playlistId=uploads_playlist_id,
                     maxResults=50,
                     pageToken=next_page_token
                 )
                 response = request.execute()
                 
-                # Collect video IDs
-                video_ids = [item['contentDetails']['videoId'] for item in response['items']]
-                all_videos.extend(video_ids)
+                # Collect video IDs, checking publish date if time filter is set
+                for item in response['items']:
+                    publish_date_str = item['snippet'].get('publishedAt', '')
+                    if publish_date_str and time_cutoff:
+                        publish_date = datetime.fromisoformat(publish_date_str.replace('Z', '+00:00')).replace(tzinfo=None)
+                        if publish_date < time_cutoff:
+                            stop_fetching = True
+                            break
+                    all_video_ids.append(item['contentDetails']['videoId'])
                 
                 # Check if there are more pages
                 next_page_token = response.get('nextPageToken')
                 if not next_page_token:
                     break
                 
-                logger.info(f"Fetched {len(all_videos)} videos so far...")
+                if progress_callback:
+                    progress_callback(len(all_video_ids), 0, 0, f"Found {len(all_video_ids)} videos...")
+                logger.info(f"Fetched {len(all_video_ids)} videos so far...")
             
-            logger.info(f"Found {len(all_videos)} total videos from {channel_name}")
+            logger.info(f"Found {len(all_video_ids)} videos from {channel_name} (within time frame)")
             
             # Get detailed info for all videos (in batches of 50)
             filtered_videos = []
+            shorts_videos = []
+            long_videos = []
             filter_reasons = {
                 'shorts': 0,
+                'long_videos': 0,
                 'livestreams': 0,
-                'missing_data': 0
+                'time_filtered': 0
             }
             
-            for i in range(0, len(all_videos), 50):
-                batch = all_videos[i:i+50]
+            total_to_process = len(all_video_ids)
+            processed_count = 0
+            
+            for i in range(0, len(all_video_ids), 50):
+                batch = all_video_ids[i:i+50]
                 
-                # Get video details including statistics for better Short detection
+                # Get video details
                 video_request = self.youtube.videos().list(
                     part='snippet,contentDetails,liveStreamingDetails,player',
                     id=','.join(batch)
@@ -161,6 +241,7 @@ class YouTubeAPIScraper:
                 video_response = video_request.execute()
                 
                 for video in video_response['items']:
+                    processed_count += 1
                     video_id = video['id']
                     title = video['snippet']['title']
                     
@@ -168,91 +249,53 @@ class YouTubeAPIScraper:
                     duration_str = video['contentDetails']['duration']
                     duration = self._parse_duration(duration_str)
                     
-                    # Check if livestream
+                    # Check if livestream - always filter these out
                     is_live = 'liveStreamingDetails' in video
+                    if is_live:
+                        filter_reasons['livestreams'] += 1
+                        # Report progress
+                        if progress_callback:
+                            progress_callback(total_to_process, processed_count, len(filtered_videos), title)
+                        continue
                     
                     # Get thumbnail
                     thumbnails = video['snippet']['thumbnails']
                     thumbnail = thumbnails.get('maxres', thumbnails.get('high', thumbnails.get('default', {})))
                     thumbnail_url = thumbnail.get('url', '')
                     
-                    # Detect Shorts using multiple methods
-                    # Shorts are vertical videos that can be up to 3 minutes (180s)
-                    is_short = False
-                    detection_method = None
+                    # Detect if Short
+                    is_short = self._detect_short(video_id, title, duration, thumbnail)
                     
-                    # Method 1: Check duration (Shorts are under 180 seconds as of 2024)
-                    # But we'll be conservative and filter anything under 61 seconds
-                    if duration <= 60:
-                        is_short = True
-                        detection_method = f"duration ({duration}s)"
-                    
-                    # Method 2: Check thumbnail dimensions (Shorts have tall thumbnails)
-                    if not is_short and thumbnail:
-                        thumb_width = thumbnail.get('width', 0)
-                        thumb_height = thumbnail.get('height', 0)
-                        if thumb_height > 0 and thumb_width > 0:
-                            aspect_ratio = thumb_width / thumb_height
-                            # Normal videos are 16:9 (1.78), Shorts are 9:16 (0.56)
-                            if aspect_ratio < 0.8:  # Vertical video
-                                is_short = True
-                                detection_method = f"aspect ratio ({aspect_ratio:.2f})"
-                    
-                    # Method 3: For videos 61-180 seconds, check if they might be Shorts
-                    # by looking at title patterns or other indicators
-                    if not is_short and 61 <= duration <= 180:
-                        # Check if title contains common Short indicators
-                        title_lower = title.lower()
-                        short_indicators = ['#shorts', '#short', 'shorts', '🩳']
-                        if any(indicator in title_lower for indicator in short_indicators):
-                            is_short = True
-                            detection_method = f"title indicator + duration ({duration}s)"
-                        else:
-                            # Method 4: Use yt-dlp to verify aspect ratio for suspicious videos
-                            logger.debug(f"Verifying with yt-dlp: {title} ({duration}s)")
-                            if self._is_short_ytdlp(video_id):
-                                is_short = True
-                                detection_method = f"yt-dlp aspect ratio verification ({duration}s)"
-                    
-                    if is_short and detection_method:
-                        logger.info(f"Filtered Short: '{title}' - detected by {detection_method}")
-                    
-                    # Apply filters
-                    if is_short:
-                        filter_reasons['shorts'] += 1
-                        logger.debug(f"Filtered out Short: {title} ({duration}s)")
-                        continue
-                    
-                    if is_live:
-                        filter_reasons['livestreams'] += 1
-                        logger.debug(f"Filtered out livestream: {title}")
-                        continue
-                    
-                    # Add to filtered list
+                    # Create video data
                     video_data = {
                         'id': video_id,
                         'title': title,
                         'duration': duration,
                         'thumbnail': thumbnail_url,
-                        'url': f"https://www.youtube.com/watch?v={video_id}"
+                        'url': f"https://www.youtube.com/watch?v={video_id}",
+                        'is_short': is_short
                     }
                     
-                    filtered_videos.append(video_data)
+                    # Filter based on video_type
+                    if video_type == "all":
+                        filtered_videos.append(video_data)
+                    elif video_type == "shorts" and is_short:
+                        filtered_videos.append(video_data)
+                    elif video_type == "videos" and not is_short:
+                        filtered_videos.append(video_data)
+                    else:
+                        if is_short:
+                            filter_reasons['shorts'] += 1
+                        else:
+                            filter_reasons['long_videos'] += 1
                     
-                    # Report progress
+                    # Report progress AFTER filtering decision
                     if progress_callback:
-                        progress_callback(
-                            len(all_videos),
-                            i + len(batch),
-                            len(filtered_videos),
-                            title
-                        )
+                        progress_callback(total_to_process, processed_count, len(filtered_videos), title)
             
             # Log filter breakdown
-            total_filtered = filter_reasons['shorts'] + filter_reasons['livestreams'] + filter_reasons['missing_data']
-            logger.info(f"Filtered to {len(filtered_videos)} eligible videos")
-            logger.info(f"Filter breakdown: {filter_reasons['shorts']} Shorts, {filter_reasons['livestreams']} Livestreams, {filter_reasons['missing_data']} Missing Data")
-            logger.info(f"Total: {len(all_videos)} found, {len(filtered_videos)} eligible, {total_filtered} filtered out")
+            logger.info(f"Filtered to {len(filtered_videos)} videos")
+            logger.info(f"Filter breakdown: {filter_reasons['shorts']} Shorts filtered, {filter_reasons['livestreams']} Livestreams filtered")
             
             return channel_name, filtered_videos
             
@@ -262,6 +305,34 @@ class YouTubeAPIScraper:
         except Exception as e:
             logger.error(f"Error scraping channel: {str(e)}")
             raise Exception(f"Failed to scrape channel: {str(e)}")
+    
+    def _detect_short(self, video_id: str, title: str, duration: int, thumbnail: dict) -> bool:
+        """Detect if a video is a Short using multiple methods"""
+        # Method 1: Check duration (Shorts are typically under 60 seconds)
+        if duration <= 60:
+            return True
+        
+        # Method 2: Check thumbnail dimensions (Shorts have tall thumbnails)
+        if thumbnail:
+            thumb_width = thumbnail.get('width', 0)
+            thumb_height = thumbnail.get('height', 0)
+            if thumb_height > 0 and thumb_width > 0:
+                aspect_ratio = thumb_width / thumb_height
+                if aspect_ratio < 0.8:  # Vertical video
+                    return True
+        
+        # Method 3: For videos 61-180 seconds, check title patterns
+        if 61 <= duration <= 180:
+            title_lower = title.lower()
+            short_indicators = ['#shorts', '#short', 'shorts', '🩳']
+            if any(indicator in title_lower for indicator in short_indicators):
+                return True
+            
+            # Method 4: Use yt-dlp to verify (only for suspicious durations)
+            if self._is_short_ytdlp(video_id):
+                return True
+        
+        return False
     
     def _is_short_ytdlp(self, video_id: str) -> bool:
         """

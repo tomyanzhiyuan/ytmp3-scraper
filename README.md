@@ -1,6 +1,25 @@
-# YouTube MP3 Scraper & Downloader
+<div align="center">
 
-A full-stack web application that scrapes YouTube channels, filters videos, and downloads them as high-quality MP3 files.
+# 🎵 YouTube MP3 Scraper
+
+[![CI](https://github.com/tomyanzhiyuan/ytmp3-scraper/actions/workflows/ci.yml/badge.svg)](https://github.com/tomyanzhiyuan/ytmp3-scraper/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![Node.js 18+](https://img.shields.io/badge/node.js-18+-green.svg)](https://nodejs.org/)
+[![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](https://www.docker.com/)
+
+**A full-stack web application that scrapes YouTube channels, filters videos, and downloads them as high-quality MP3 files.**
+
+[Features](#-features) • [Quick Start](#-quick-start) • [Installation](#-installation) • [Usage](#-usage) • [API](#-api-endpoints) • [Contributing](#-contributing)
+
+<img src="https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white" alt="FastAPI" />
+<img src="https://img.shields.io/badge/React-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="React" />
+<img src="https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript" />
+<img src="https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white" alt="Tailwind CSS" />
+
+</div>
+
+---
 
 ## ✨ Features
 
@@ -31,6 +50,39 @@ A full-stack web application that scrapes YouTube channels, filters videos, and 
 - **Vite** - Build tool and dev server
 - **Tailwind CSS** - Utility-first styling
 - **Axios** - HTTP client
+
+## 🚀 Quick Start
+
+### Using Docker (Recommended)
+
+```bash
+# Clone the repository
+git clone https://github.com/tomyanzhiyuan/ytmp3-scraper.git
+cd ytmp3-scraper
+
+# Run with Docker Compose
+docker compose up --build
+
+# Open http://localhost:8000 in your browser
+```
+
+### Using Conda
+
+```bash
+# Clone and setup
+git clone https://github.com/tomyanzhiyuan/ytmp3-scraper.git
+cd ytmp3-scraper
+conda env create -f environment.yml
+conda activate ytmp3-scraper
+
+# Start backend (Terminal 1)
+cd backend && uvicorn main:app --reload --port 8000
+
+# Start frontend (Terminal 2)
+cd frontend && npm install && npm run dev
+```
+
+---
 
 ## 📋 Prerequisites
 

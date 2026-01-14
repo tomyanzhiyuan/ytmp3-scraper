@@ -14,7 +14,12 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-def scrape_channel_videos(channel_url: str, progress_callback=None) -> tuple[str, List[Dict]]:
+def scrape_channel_videos(
+    channel_url: str, 
+    progress_callback=None,
+    video_type: str = "videos",
+    time_frame: str = "all"
+) -> tuple[str, List[Dict]]:
     """
     Scrape all videos from a YouTube channel.
     Tries YouTube Data API first (if API key available), falls back to yt-dlp.
@@ -22,6 +27,8 @@ def scrape_channel_videos(channel_url: str, progress_callback=None) -> tuple[str
     Args:
         channel_url: YouTube channel URL
         progress_callback: Optional callback function(total, processed, filtered, current_title)
+        video_type: "all", "shorts", or "videos"
+        time_frame: "all", "week", "month", or "year"
         
     Returns:
         Tuple of (channel_name, list of video metadata dictionaries)
@@ -34,14 +41,19 @@ def scrape_channel_videos(channel_url: str, progress_callback=None) -> tuple[str
             from youtube_api_scraper import YouTubeAPIScraper
             
             scraper = YouTubeAPIScraper(api_key)
-            return scraper.scrape_channel_videos(channel_url, progress_callback)
+            return scraper.scrape_channel_videos(
+                channel_url, 
+                progress_callback,
+                video_type=video_type,
+                time_frame=time_frame
+            )
         except Exception as e:
             logger.warning(f"YouTube API failed: {e}. Falling back to yt-dlp...")
     else:
         logger.info("No YouTube API key found. Using yt-dlp (limited to ~360 videos)")
     
     # Fallback to yt-dlp
-    return _scrape_with_ytdlp(channel_url, progress_callback)
+    return _scrape_with_ytdlp(channel_url, progress_callback, video_type, time_frame)
 
 
 def _scrape_with_ytdlp(channel_url: str, progress_callback=None) -> tuple[str, List[Dict]]:

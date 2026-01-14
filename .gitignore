@@ -56,3 +56,21 @@ output/
 
 # Cookies (contains authentication data)
 backend/cookies.txt
+
+# Local development
+.env.local
+.env.*.local
+
+# Editor directories
+*.sublime-project
+*.sublime-workspace
+
+# Test coverage
+coverage/
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Build artifacts
+*.pyc
+__pycache__/

@@ -1,7 +1,6 @@
 """
-FastAPI application for YouTube MP3 scraper
+FastAPI application for YouTube MP3 scraper.
 """
-#hello :)
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Dict
@@ -31,7 +30,7 @@ app = FastAPI(
 # CORS configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"],
+    allow_origins=["http://localhost:5173", "http://localhost:5174", "http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -78,7 +77,7 @@ async def root():
     }
 
 
-async def scrape_channel_task(channel_url: str):
+async def scrape_channel_task(channel_url: str, video_type: str = "videos", time_frame: str = "all"):
     """
     Background task to scrape channel videos.
     """
@@ -95,8 +94,13 @@ async def scrape_channel_task(channel_url: str):
         scrape_state["percentage"] = (processed / total * 100) if total > 0 else 0
     
     try:
-        # Scrape videos with progress callback
-        channel_name, videos = scrape_channel_videos(channel_url, progress_callback)
+        # Scrape videos with progress callback and filters
+        channel_name, videos = scrape_channel_videos(
+            channel_url, 
+            progress_callback,
+            video_type=video_type,
+            time_frame=time_frame
+        )
         
         # Store channel name and video metadata in global state for later download
         download_state["channel_name"] = channel_name
@@ -127,13 +131,13 @@ async def scrape_channel(request: ChannelRequest, background_tasks: BackgroundTa
     Start scraping a YouTube channel in the background.
     Returns immediately and client should poll /api/scrape-progress for updates.
     
-    Filters:
-    - Duration > 60 seconds
-    - Excludes YouTube Shorts
-    - Excludes livestreams
+    Supports filtering by:
+    - video_type: "all", "shorts", or "videos"
+    - time_frame: "all", "week", "month", or "year"
     """
     try:
         logger.info(f"Received scrape request for: {request.channel_url}")
+        logger.info(f"Filters: video_type={request.video_type}, time_frame={request.time_frame}")
         
         # Validate URL
         if not request.channel_url or "youtube.com" not in request.channel_url:
@@ -143,8 +147,13 @@ async def scrape_channel(request: ChannelRequest, background_tasks: BackgroundTa
         if scrape_state["status"] == "scraping":
             raise HTTPException(status_code=409, detail="Scraping already in progress")
         
-        # Start background scraping task
-        background_tasks.add_task(scrape_channel_task, request.channel_url)
+        # Start background scraping task with filters
+        background_tasks.add_task(
+            scrape_channel_task, 
+            request.channel_url,
+            request.video_type.value,
+            request.time_frame.value
+        )
         
         return {"message": "Scraping started", "status": "scraping"}
         

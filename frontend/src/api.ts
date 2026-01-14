@@ -21,6 +21,9 @@ export interface VideoMetadata {
   url: string;
 }
 
+export type VideoType = 'all' | 'shorts' | 'videos';
+export type TimeFrame = 'all' | 'week' | 'month' | 'year';
+
 export interface ScrapeResponse {
   videos: VideoMetadata[];
   total_found: number;
@@ -59,9 +62,15 @@ export interface FilesResponse {
 /**
  * Start scraping a YouTube channel (non-blocking)
  */
-export const startScrape = async (channelUrl: string): Promise<void> => {
+export const startScrape = async (
+  channelUrl: string,
+  videoType: VideoType = 'videos',
+  timeFrame: TimeFrame = 'all'
+): Promise<void> => {
   await api.post('/api/scrape', {
     channel_url: channelUrl,
+    video_type: videoType,
+    time_frame: timeFrame,
   });
 };
 

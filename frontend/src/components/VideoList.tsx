@@ -14,7 +14,6 @@ export default function VideoList({ videos, onDownload, isDownloading }: VideoLi
   const [selectedVideos, setSelectedVideos] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    // Reset selection when videos change
     setSelectedVideos(new Set());
   }, [videos]);
 
@@ -29,7 +28,7 @@ export default function VideoList({ videos, onDownload, isDownloading }: VideoLi
   };
 
   const selectAll = () => {
-    setSelectedVideos(new Set(videos.map(v => v.id)));
+    setSelectedVideos(new Set(videos.map((v) => v.id)));
   };
 
   const deselectAll = () => {
@@ -43,7 +42,7 @@ export default function VideoList({ videos, onDownload, isDownloading }: VideoLi
   };
 
   const handleDownloadAll = () => {
-    onDownload(videos.map(v => v.id));
+    onDownload(videos.map((v) => v.id));
   };
 
   const formatDuration = (seconds: number): string => {
@@ -62,83 +61,86 @@ export default function VideoList({ videos, onDownload, isDownloading }: VideoLi
   }
 
   return (
-    <div className="w-full max-w-6xl mx-auto mt-8">
-      <div className="bg-white rounded-lg shadow-lg p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-gray-800">
-            Found {videos.length} Videos
-          </h2>
-          <div className="flex gap-2">
-            <button
-              onClick={selectAll}
-              className="px-4 py-2 text-sm bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition"
-              disabled={isDownloading}
-            >
-              Select All
-            </button>
-            <button
-              onClick={deselectAll}
-              className="px-4 py-2 text-sm bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition"
-              disabled={isDownloading}
-            >
-              Deselect All
-            </button>
-          </div>
-        </div>
-
-        <div className="mb-4 flex gap-3">
+    <div className="w-full max-w-4xl mx-auto mt-8">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-lg font-medium text-white">{videos.length} videos</h2>
+        <div className="flex gap-2 text-xs">
           <button
-            onClick={handleDownloadSelected}
-            disabled={selectedVideos.size === 0 || isDownloading}
-            className="flex-1 bg-blue-600 text-white py-3 px-6 rounded-lg font-medium hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition"
-          >
-            Download Selected ({selectedVideos.size})
-          </button>
-          <button
-            onClick={handleDownloadAll}
+            onClick={selectAll}
+            className="px-3 py-1.5 text-slate-400 hover:text-white transition-colors"
             disabled={isDownloading}
-            className="flex-1 bg-green-600 text-white py-3 px-6 rounded-lg font-medium hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition"
           >
-            Download All ({videos.length})
+            Select all
+          </button>
+          <button
+            onClick={deselectAll}
+            className="px-3 py-1.5 text-slate-400 hover:text-white transition-colors"
+            disabled={isDownloading}
+          >
+            Clear
           </button>
         </div>
+      </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[600px] overflow-y-auto">
-          {videos.map((video) => (
-            <div
-              key={video.id}
-              className={`border rounded-lg overflow-hidden cursor-pointer transition ${
-                selectedVideos.has(video.id)
-                  ? 'border-blue-500 ring-2 ring-blue-200'
-                  : 'border-gray-200 hover:border-gray-300'
-              }`}
-              onClick={() => toggleVideo(video.id)}
-            >
-              <div className="relative">
-                <img
-                  src={video.thumbnail}
-                  alt={video.title}
-                  className="w-full h-40 object-cover"
-                />
-                <div className="absolute bottom-2 right-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded">
-                  {formatDuration(video.duration)}
+      {/* Action Buttons */}
+      <div className="flex gap-3 mb-5">
+        <button
+          onClick={handleDownloadSelected}
+          disabled={selectedVideos.size === 0 || isDownloading}
+          className="flex-1 bg-white text-black py-2.5 px-4 rounded-lg text-sm font-medium hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+        >
+          Download selected ({selectedVideos.size})
+        </button>
+        <button
+          onClick={handleDownloadAll}
+          disabled={isDownloading}
+          className="px-4 py-2.5 bg-[#1a1a24] border border-white/10 text-white rounded-lg text-sm font-medium hover:bg-[#22222e] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+        >
+          Download all
+        </button>
+      </div>
+
+      {/* Video Grid */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 max-h-[500px] overflow-y-auto pr-1">
+        {videos.map((video) => (
+          <div
+            key={video.id}
+            className={`group bg-[#1a1a24] rounded-lg overflow-hidden cursor-pointer border transition-colors ${
+              selectedVideos.has(video.id)
+                ? 'border-white/40'
+                : 'border-transparent hover:border-white/20'
+            }`}
+            onClick={() => toggleVideo(video.id)}
+          >
+            <div className="relative aspect-video">
+              <img
+                src={video.thumbnail}
+                alt={video.title}
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute bottom-1.5 right-1.5 bg-black/80 text-white text-[10px] px-1.5 py-0.5 rounded font-mono">
+                {formatDuration(video.duration)}
+              </div>
+              {selectedVideos.has(video.id) && (
+                <div className="absolute top-1.5 right-1.5 bg-white text-black rounded p-0.5">
+                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                    <path
+                      fillRule="evenodd"
+                      d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
                 </div>
-                {selectedVideos.has(video.id) && (
-                  <div className="absolute top-2 right-2 bg-blue-600 text-white rounded-full p-1">
-                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                )}
-              </div>
-              <div className="p-3">
-                <h3 className="text-sm font-medium text-gray-800 line-clamp-2">
-                  {video.title}
-                </h3>
-              </div>
+              )}
             </div>
-          ))}
-        </div>
+            <div className="p-2.5">
+              <h3 className="text-xs text-slate-300 line-clamp-2 leading-tight">
+                {video.title}
+              </h3>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );

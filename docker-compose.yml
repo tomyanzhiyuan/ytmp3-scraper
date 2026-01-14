@@ -1,0 +1,36 @@
+# Docker Compose for YouTube MP3 Scraper
+# Usage: docker compose up --build
+
+services:
+  # Full-stack application (frontend + backend)
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      # Persist downloaded MP3 files
+      - ./output:/app/output
+      # Mount cookies file if it exists (for YouTube authentication)
+      - ./backend/cookies.txt:/app/backend/cookies.txt:ro
+    environment:
+      - YOUTUBE_API_KEY=${YOUTUBE_API_KEY:-}
+    restart: unless-stopped
+
+  # Development mode: Backend only (use with frontend dev server)
+  backend-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app/backend
+      - ./output:/app/output
+    environment:
+      - YOUTUBE_API_KEY=${YOUTUBE_API_KEY:-}
+    profiles:
+      - dev
+    restart: unless-stopped
+
