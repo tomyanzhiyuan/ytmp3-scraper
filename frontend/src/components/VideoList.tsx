@@ -61,21 +61,21 @@ export default function VideoList({ videos, onDownload, isDownloading }: VideoLi
   }
 
   return (
-    <div className="w-full max-w-4xl mx-auto mt-8">
+    <div className="mx-auto mt-8 w-full max-w-4xl">
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="mb-4 flex items-center justify-between">
         <h2 className="text-lg font-medium text-white">{videos.length} videos</h2>
         <div className="flex gap-2 text-xs">
           <button
             onClick={selectAll}
-            className="px-3 py-1.5 text-slate-400 hover:text-white transition-colors"
+            className="px-3 py-1.5 text-slate-400 transition-colors hover:text-white"
             disabled={isDownloading}
           >
             Select all
           </button>
           <button
             onClick={deselectAll}
-            className="px-3 py-1.5 text-slate-400 hover:text-white transition-colors"
+            className="px-3 py-1.5 text-slate-400 transition-colors hover:text-white"
             disabled={isDownloading}
           >
             Clear
@@ -84,29 +84,29 @@ export default function VideoList({ videos, onDownload, isDownloading }: VideoLi
       </div>
 
       {/* Action Buttons */}
-      <div className="flex gap-3 mb-5">
+      <div className="mb-5 flex gap-3">
         <button
           onClick={handleDownloadSelected}
           disabled={selectedVideos.size === 0 || isDownloading}
-          className="flex-1 bg-white text-black py-2.5 px-4 rounded-lg text-sm font-medium hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          className="flex-1 rounded-lg bg-white px-4 py-2.5 text-sm font-medium text-black transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-30"
         >
           Download selected ({selectedVideos.size})
         </button>
         <button
           onClick={handleDownloadAll}
           disabled={isDownloading}
-          className="px-4 py-2.5 bg-[#1a1a24] border border-white/10 text-white rounded-lg text-sm font-medium hover:bg-[#22222e] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          className="rounded-lg border border-white/10 bg-[#1a1a24] px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[#22222e] disabled:cursor-not-allowed disabled:opacity-30"
         >
           Download all
         </button>
       </div>
 
       {/* Video Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 max-h-[500px] overflow-y-auto pr-1">
+      <div className="grid max-h-[500px] grid-cols-2 gap-3 overflow-y-auto pr-1 sm:grid-cols-3 lg:grid-cols-4">
         {videos.map((video) => (
           <div
             key={video.id}
-            className={`group bg-[#1a1a24] rounded-lg overflow-hidden cursor-pointer border transition-colors ${
+            className={`group cursor-pointer overflow-hidden rounded-lg border bg-[#1a1a24] transition-colors ${
               selectedVideos.has(video.id)
                 ? 'border-white/40'
                 : 'border-transparent hover:border-white/20'
@@ -114,17 +114,13 @@ export default function VideoList({ videos, onDownload, isDownloading }: VideoLi
             onClick={() => toggleVideo(video.id)}
           >
             <div className="relative aspect-video">
-              <img
-                src={video.thumbnail}
-                alt={video.title}
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute bottom-1.5 right-1.5 bg-black/80 text-white text-[10px] px-1.5 py-0.5 rounded font-mono">
+              <img src={video.thumbnail} alt={video.title} className="h-full w-full object-cover" />
+              <div className="absolute bottom-1.5 right-1.5 rounded bg-black/80 px-1.5 py-0.5 font-mono text-[10px] text-white">
                 {formatDuration(video.duration)}
               </div>
               {selectedVideos.has(video.id) && (
-                <div className="absolute top-1.5 right-1.5 bg-white text-black rounded p-0.5">
-                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                <div className="absolute right-1.5 top-1.5 rounded bg-white p-0.5 text-black">
+                  <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
                     <path
                       fillRule="evenodd"
                       d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
@@ -135,9 +131,7 @@ export default function VideoList({ videos, onDownload, isDownloading }: VideoLi
               )}
             </div>
             <div className="p-2.5">
-              <h3 className="text-xs text-slate-300 line-clamp-2 leading-tight">
-                {video.title}
-              </h3>
+              <h3 className="line-clamp-2 text-xs leading-tight text-slate-300">{video.title}</h3>
             </div>
           </div>
         ))}

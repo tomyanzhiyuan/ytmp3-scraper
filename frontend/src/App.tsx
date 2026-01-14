@@ -135,32 +135,25 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f] py-12 px-4">
+    <div className="min-h-screen bg-[#0a0a0f] px-4 py-12">
       <div className="container mx-auto max-w-5xl">
         {/* Header */}
-        <div className="text-center mb-10">
-          <h1 className="text-3xl md:text-4xl font-semibold text-white mb-2">
-            YouTube to MP3
-          </h1>
-          <p className="text-slate-500 text-sm">
-            Download audio from YouTube channels
-          </p>
+        <div className="mb-10 text-center">
+          <h1 className="mb-2 text-3xl font-semibold text-white md:text-4xl">YouTube to MP3</h1>
+          <p className="text-sm text-slate-500">Download audio from YouTube channels</p>
         </div>
 
         {/* Error Message */}
         {error && (
-          <div className="max-w-2xl mx-auto mb-6">
-            <div className="bg-red-500/10 border border-red-500/20 text-red-400 px-4 py-3 rounded-lg text-sm">
+          <div className="mx-auto mb-6 max-w-2xl">
+            <div className="rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
               {error}
             </div>
           </div>
         )}
 
         {/* Channel Input */}
-        <ChannelInput
-          onScrape={handleScrape}
-          isLoading={scrapeProgress.status === 'scraping'}
-        />
+        <ChannelInput onScrape={handleScrape} isLoading={scrapeProgress.status === 'scraping'} />
 
         {/* Scrape Progress */}
         <ScrapeProgress progress={scrapeProgress} />
@@ -178,9 +171,7 @@ function App() {
         <DownloadProgress progress={progress} />
 
         {/* Footer */}
-        <div className="text-center mt-16 text-slate-600 text-xs">
-          For personal use only
-        </div>
+        <div className="mt-16 text-center text-xs text-slate-600">For personal use only</div>
       </div>
     </div>
   );

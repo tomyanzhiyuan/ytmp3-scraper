@@ -22,7 +22,7 @@ export default function ChannelInput({ onScrape, isLoading }: ChannelInputProps)
   };
 
   return (
-    <div className="w-full max-w-2xl mx-auto">
+    <div className="mx-auto w-full max-w-2xl">
       <form onSubmit={handleSubmit} className="space-y-5">
         {/* URL Input */}
         <input
@@ -31,22 +31,22 @@ export default function ChannelInput({ onScrape, isLoading }: ChannelInputProps)
           value={url}
           onChange={(e) => setUrl(e.target.value)}
           placeholder="https://www.youtube.com/@channelname"
-          className="w-full px-4 py-3.5 bg-[#1a1a24] border border-white/10 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-white/30 transition-colors"
+          className="w-full rounded-lg border border-white/10 bg-[#1a1a24] px-4 py-3.5 text-white placeholder-slate-500 transition-colors focus:border-white/30 focus:outline-none"
           disabled={isLoading}
         />
 
         {/* Filter Options */}
-        <div className="flex flex-col sm:flex-row gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row">
           {/* Video Type Filter */}
           <div className="flex-1">
-            <label className="block text-xs text-slate-500 mb-1.5 uppercase tracking-wide">
+            <label className="mb-1.5 block text-xs uppercase tracking-wide text-slate-500">
               Content Type
             </label>
             <select
               value={videoType}
               onChange={(e) => setVideoType(e.target.value as VideoType)}
               disabled={isLoading}
-              className="w-full px-3 py-2.5 bg-[#1a1a24] border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-white/30 transition-colors cursor-pointer disabled:opacity-50"
+              className="w-full cursor-pointer rounded-lg border border-white/10 bg-[#1a1a24] px-3 py-2.5 text-sm text-white transition-colors focus:border-white/30 focus:outline-none disabled:opacity-50"
             >
               <option value="videos">Videos only</option>
               <option value="shorts">Shorts only</option>
@@ -56,14 +56,14 @@ export default function ChannelInput({ onScrape, isLoading }: ChannelInputProps)
 
           {/* Time Frame Filter */}
           <div className="flex-1">
-            <label className="block text-xs text-slate-500 mb-1.5 uppercase tracking-wide">
+            <label className="mb-1.5 block text-xs uppercase tracking-wide text-slate-500">
               Time Frame
             </label>
             <select
               value={timeFrame}
               onChange={(e) => setTimeFrame(e.target.value as TimeFrame)}
               disabled={isLoading}
-              className="w-full px-3 py-2.5 bg-[#1a1a24] border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-white/30 transition-colors cursor-pointer disabled:opacity-50"
+              className="w-full cursor-pointer rounded-lg border border-white/10 bg-[#1a1a24] px-3 py-2.5 text-sm text-white transition-colors focus:border-white/30 focus:outline-none disabled:opacity-50"
             >
               <option value="week">Last week</option>
               <option value="month">Last month</option>
@@ -77,12 +77,12 @@ export default function ChannelInput({ onScrape, isLoading }: ChannelInputProps)
         <button
           type="submit"
           disabled={isLoading || !url.trim()}
-          className="w-full bg-white text-black py-3.5 px-6 rounded-lg font-medium hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          className="w-full rounded-lg bg-white px-6 py-3.5 font-medium text-black transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
         >
           {isLoading ? (
             <span className="flex items-center justify-center gap-2">
               <svg
-                className="animate-spin h-5 w-5"
+                className="h-5 w-5 animate-spin"
                 xmlns="http://www.w3.org/2000/svg"
                 fill="none"
                 viewBox="0 0 24 24"
