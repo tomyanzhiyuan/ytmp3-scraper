@@ -307,66 +307,71 @@ class YouTubeAPIScraper:
             raise Exception(f"Failed to scrape channel: {str(e)}")
     
     def _detect_short(self, video_id: str, title: str, duration: int, thumbnail: dict) -> bool:
-        """Detect if a video is a Short using multiple methods"""
-        # Method 1: Check duration (Shorts are typically under 60 seconds)
-        if duration <= 60:
-            return True
-        
-        # Method 2: Check thumbnail dimensions (Shorts have tall thumbnails)
-        if thumbnail:
-            thumb_width = thumbnail.get('width', 0)
-            thumb_height = thumbnail.get('height', 0)
-            if thumb_height > 0 and thumb_width > 0:
-                aspect_ratio = thumb_width / thumb_height
-                if aspect_ratio < 0.8:  # Vertical video
-                    return True
-        
-        # Method 3: For videos 61-180 seconds, check title patterns
-        if 61 <= duration <= 180:
-            title_lower = title.lower()
-            short_indicators = ['#shorts', '#short', 'shorts', '🩳']
-            if any(indicator in title_lower for indicator in short_indicators):
-                return True
-            
-            # Method 4: Use yt-dlp to verify (only for suspicious durations)
-            if self._is_short_ytdlp(video_id):
-                return True
-        
-        return False
-    
-    def _is_short_ytdlp(self, video_id: str) -> bool:
         """
-        Use yt-dlp to verify if a video is a Short by checking its aspect ratio
+        Detect if a video is a Short using yt-dlp (most reliable method).
         
-        Args:
-            video_id: YouTube video ID
-            
-        Returns:
-            True if video is a Short, False otherwise
+        YouTube Shorts can be up to 3 minutes. The only reliable way to detect them
+        is to check if YouTube serves them on the /shorts/ URL path.
         """
+        # Quick heuristic: Videos over 3 minutes (180s) cannot be Shorts
+        if duration > 180:
+            return False
+        
+        # For videos under 3 minutes, use yt-dlp to definitively check
+        # This is the only reliable method as YouTube's API doesn't expose Short status
         try:
             ydl_opts = {
                 'quiet': True,
                 'no_warnings': True,
                 'skip_download': True,
+                'extract_flat': False,
             }
             
+            # Try the /shorts/ URL - this is the definitive check
+            # If YouTube serves the video at /shorts/{id}, it's a Short
+            shorts_url = f"https://www.youtube.com/shorts/{video_id}"
+            
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
-                
-                # Check aspect ratio - Shorts are vertical (height > width)
-                width = info.get('width', 0)
-                height = info.get('height', 0)
-                
-                if width > 0 and height > 0:
-                    aspect_ratio = width / height
-                    # Vertical video (aspect ratio < 0.8) is likely a Short
-                    return aspect_ratio < 0.8
-                
-                return False
-        except Exception as e:
-            logger.debug(f"yt-dlp verification failed for {video_id}: {e}")
+                try:
+                    info = ydl.extract_info(shorts_url, download=False)
+                    # If we successfully extracted from /shorts/ URL, it's a Short
+                    if info:
+                        logger.debug(f"Video {video_id} confirmed as Short via /shorts/ URL")
+                        return True
+                except Exception:
+                    # /shorts/ URL failed - not a Short
+                    logger.debug(f"Video {video_id} is NOT a Short (/shorts/ URL failed)")
+                    return False
+            
             return False
+            
+        except Exception as e:
+            logger.debug(f"yt-dlp Short detection failed for {video_id}: {e}")
+            # On error, fall back to heuristics
+            return self._detect_short_heuristic(title, duration, thumbnail)
+    
+    def _detect_short_heuristic(self, title: str, duration: int, thumbnail: dict) -> bool:
+        """
+        Fallback heuristic detection when yt-dlp fails.
+        Less reliable but better than nothing.
+        """
+        # Check title patterns
+        title_lower = title.lower()
+        short_indicators = ['#shorts', '#short']
+        if any(indicator in title_lower for indicator in short_indicators):
+            return True
+        
+        # Check thumbnail aspect ratio (Shorts have vertical thumbnails)
+        if thumbnail:
+            thumb_width = thumbnail.get('width', 0)
+            thumb_height = thumbnail.get('height', 0)
+            if thumb_height > 0 and thumb_width > 0:
+                aspect_ratio = thumb_width / thumb_height
+                # Very vertical (9:16 ≈ 0.56) suggests Short
+                if aspect_ratio < 0.7:
+                    return True
+        
+        return False
     
     def _parse_duration(self, duration_str: str) -> int:
         """
