@@ -5,3 +5,6 @@ pydantic==2.5.0
 google-api-python-client==2.108.0
 python-dotenv==1.0.0
 python-multipart==0.0.6
+
+# Dev dependencies
+pytest>=8.0.0
