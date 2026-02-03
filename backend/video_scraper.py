@@ -4,9 +4,12 @@ YouTube channel video scraper using YouTube Data API (with yt-dlp fallback)
 
 import logging
 import os
+from datetime import datetime
 
 import yt_dlp
 from dotenv import load_dotenv
+
+from youtube_api_scraper import get_time_cutoff
 
 # Load environment variables from .env file
 load_dotenv()
@@ -51,13 +54,20 @@ def scrape_channel_videos(
     return _scrape_with_ytdlp(channel_url, progress_callback, video_type, time_frame)
 
 
-def _scrape_with_ytdlp(channel_url: str, progress_callback=None) -> tuple[str, list[dict]]:
+def _scrape_with_ytdlp(
+    channel_url: str,
+    progress_callback=None,
+    video_type: str = "videos",
+    time_frame: str = "all",
+) -> tuple[str, list[dict]]:
     """
     Scrape all videos from a YouTube channel and filter them.
 
     Args:
         channel_url: YouTube channel URL
         progress_callback: Optional callback function(total, processed, filtered, current_title)
+        video_type: "all", "shorts", or "videos" - filter by content type
+        time_frame: "all", "week", "month", or "year" - filter by upload date
 
     Returns:
         Tuple of (channel_name, list of video metadata dictionaries)
@@ -103,10 +113,16 @@ def _scrape_with_ytdlp(channel_url: str, progress_callback=None) -> tuple[str, l
                 return channel_name, []
 
             logger.info(f"Found {len(entries)} total videos from {channel_name}")
+            logger.info(f"Filters: video_type={video_type}, time_frame={time_frame}")
+
+            # Get time cutoff for filtering
+            time_cutoff = get_time_cutoff(time_frame)
+            if time_cutoff:
+                logger.info(f"Time cutoff: {time_cutoff.isoformat()}")
 
             # Filter videos and track reasons
             filtered_videos = []
-            filter_reasons = {"shorts": 0, "livestreams": 0, "missing_data": 0}
+            filter_reasons = {"shorts": 0, "long_videos": 0, "livestreams": 0, "missing_data": 0, "time_filtered": 0}
             processed_count = 0
             total_count = len(entries)
 
@@ -126,32 +142,60 @@ def _scrape_with_ytdlp(channel_url: str, progress_callback=None) -> tuple[str, l
                     logger.debug(f"Skipping video with missing data: {title}")
                     continue
 
-                # Filter criteria
-                is_short = duration < 60  # Less than 1 minute
+                # Check time frame filter
+                if time_cutoff:
+                    # Try timestamp first, then upload_date
+                    upload_timestamp = entry.get("timestamp")
+                    upload_date_str = entry.get("upload_date")
+
+                    if upload_timestamp:
+                        upload_date = datetime.utcfromtimestamp(upload_timestamp)
+                    elif upload_date_str:
+                        try:
+                            upload_date = datetime.strptime(upload_date_str, "%Y%m%d")
+                        except ValueError:
+                            upload_date = None
+                    else:
+                        upload_date = None
+
+                    if upload_date and upload_date < time_cutoff:
+                        filter_reasons["time_filtered"] += 1
+                        logger.debug(f"Filtered out by time: {title} (uploaded {upload_date})")
+                        continue
+
+                # Filter criteria - Shorts can be up to 180 seconds (3 minutes)
+                is_short = duration <= 180
                 is_live = entry.get("is_live", False)
                 was_live = entry.get("was_live", False)
 
-                # Apply filters
-                if is_short:
-                    filter_reasons["shorts"] += 1
-                    logger.debug(f"Filtered out Short: {title} ({duration}s)")
-                    continue
-
+                # Always filter out livestreams
                 if is_live or was_live:
                     filter_reasons["livestreams"] += 1
                     logger.debug(f"Filtered out livestream: {title}")
                     continue
 
-                # Add to filtered list
+                # Create video data
                 video_data = {
                     "id": video_id,
                     "title": title,
                     "duration": duration,
                     "thumbnail": thumbnail or f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg",
                     "url": f"https://www.youtube.com/watch?v={video_id}",
+                    "is_short": is_short,
                 }
 
-                filtered_videos.append(video_data)
+                # Filter based on video_type
+                if video_type == "all":
+                    filtered_videos.append(video_data)
+                elif video_type == "shorts" and is_short:
+                    filtered_videos.append(video_data)
+                elif video_type == "videos" and not is_short:
+                    filtered_videos.append(video_data)
+                else:
+                    if is_short:
+                        filter_reasons["shorts"] += 1
+                    else:
+                        filter_reasons["long_videos"] += 1
 
                 # Report progress
                 processed_count = idx
@@ -159,10 +203,12 @@ def _scrape_with_ytdlp(channel_url: str, progress_callback=None) -> tuple[str, l
                     progress_callback(total_count, processed_count, len(filtered_videos), title)
 
             # Log filter breakdown
-            total_filtered = filter_reasons["shorts"] + filter_reasons["livestreams"] + filter_reasons["missing_data"]
+            total_filtered = sum(filter_reasons.values())
             logger.info(f"Filtered to {len(filtered_videos)} eligible videos")
             logger.info(
-                f"Filter breakdown: {filter_reasons['shorts']} Shorts, {filter_reasons['livestreams']} Livestreams, {filter_reasons['missing_data']} Missing Data"
+                f"Filter breakdown: {filter_reasons['shorts']} Shorts, {filter_reasons['long_videos']} Long videos, "
+                f"{filter_reasons['livestreams']} Livestreams, {filter_reasons['time_filtered']} Time filtered, "
+                f"{filter_reasons['missing_data']} Missing Data"
             )
             logger.info(f"Total: {len(entries)} found, {len(filtered_videos)} eligible, {total_filtered} filtered out")
 

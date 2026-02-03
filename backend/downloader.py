@@ -93,13 +93,16 @@ def sanitize_filename(filename: str) -> str:
     return filename
 
 
-def check_file_exists(title: str, channel_name: str | None = None) -> tuple[bool, str | None]:
+def check_file_exists(
+    title: str, channel_name: str | None = None, format: str = "mp3"
+) -> tuple[bool, str | None]:
     """
     Check if a video file already exists without making any API calls.
 
     Args:
         title: Video title
         channel_name: Optional channel name for subfolder
+        format: File format to check for ("mp3" or "mp4")
 
     Returns:
         Tuple of (exists, filepath) - filepath is None if not found
@@ -115,7 +118,7 @@ def check_file_exists(title: str, channel_name: str | None = None) -> tuple[bool
 
     # Sanitize title for comparison
     sanitized_title = sanitize_filename(title)
-    expected_file = os.path.join(output_dir, f"{sanitized_title}.mp3")
+    expected_file = os.path.join(output_dir, f"{sanitized_title}.{format}")
 
     # Check exact match
     if os.path.exists(expected_file):
@@ -124,10 +127,10 @@ def check_file_exists(title: str, channel_name: str | None = None) -> tuple[bool
     # Check for fuzzy match (handles special characters)
     try:
         for existing_file in os.listdir(output_dir):
-            if not existing_file.endswith(".mp3"):
+            if not existing_file.endswith(f".{format}"):
                 continue
 
-            file_base = existing_file[:-4]
+            file_base = existing_file[: -(len(format) + 1)]
 
             # Check if sanitized title is in filename
             if sanitized_title.lower() in file_base.lower():

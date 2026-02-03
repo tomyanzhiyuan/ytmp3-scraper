@@ -9,7 +9,7 @@
 [![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](https://www.docker.com/)
 [![Tests](https://img.shields.io/badge/tests-72%20passed-brightgreen.svg)](https://github.com/tomyanzhiyuan/ytmp3-scraper/actions)
 
-**Download audio from YouTube channels as MP3 files. Filter by content type (videos/shorts) and time frame.**
+**Download audio or video from YouTube channels as MP3 or MP4 files. Filter by content type (videos/shorts) and time frame.**
 
 [Features](#-features) • [Quick Start](#-quick-start) • [Installation](#-installation) • [Usage](#-usage) • [API](#-api-endpoints) • [Contributing](#-contributing)
 
@@ -33,6 +33,7 @@
 - 🔍 **Accurate Short Detection**: Verified via YouTube's `/shorts/` URL (no false positives)
 - 🚀 **Complete Channel Scraping**: Uses YouTube Data API v3 to fetch ALL videos (no limits!)
 - 🎵 **High-Quality Audio**: Downloads and converts to 320kbps MP3
+- 🎬 **Video Downloads**: Also supports MP4 video format
 - 🖥️ **Clean UI**: Minimalistic React interface with real-time progress
 - ✅ **Selective Downloads**: Choose specific videos or download all at once
 - 🔄 **Smart Fallback**: Automatically falls back to yt-dlp if no API key
@@ -206,10 +207,10 @@ The frontend will be available at `http://localhost:5173`
 
 3. **Click "Scrape Videos"** to fetch all eligible videos from the channel
 
-4. **Review the video list** - Videos are automatically filtered to:
-   - Duration > 1 minute
-   - Exclude YouTube Shorts
-   - Exclude livestreams
+4. **Review the video list** - Videos are filtered based on your selections:
+   - **Video Type**: Videos only, Shorts only, or All content
+   - **Time Frame**: Last week, month, year, or all time
+   - Livestreams are always excluded
 
 5. **Select videos** to download:
    - Check individual videos
@@ -240,7 +241,8 @@ ytmp3-scraper/
 │   │   └── components/
 │   │       ├── ChannelInput.tsx      # URL input component
 │   │       ├── VideoList.tsx         # Video display & selection
-│   │       └── DownloadProgress.tsx  # Progress tracking
+│   │       ├── ScrapeProgress.tsx    # Scraping progress indicator
+│   │       └── DownloadProgress.tsx  # Download progress tracking
 │   ├── index.html
 │   ├── package.json
 │   ├── tailwind.config.js
@@ -260,9 +262,16 @@ Scrapes a YouTube channel and returns filtered video metadata.
 **Request:**
 ```json
 {
-  "channel_url": "https://www.youtube.com/@channelname"
+  "channel_url": "https://www.youtube.com/@channelname",
+  "video_type": "videos",
+  "time_frame": "all"
 }
 ```
+
+**Parameters:**
+- `channel_url` (required): YouTube channel URL
+- `video_type` (optional): `"all"`, `"shorts"`, or `"videos"` (default: `"videos"`)
+- `time_frame` (optional): `"all"`, `"week"`, `"month"`, or `"year"` (default: `"all"`)
 
 **Response:**
 ```json
@@ -280,19 +289,24 @@ Scrapes a YouTube channel and returns filtered video metadata.
 ```
 
 ### `POST /api/download`
-Downloads selected videos and converts them to MP3.
+Downloads selected videos in the specified format (MP3 or MP4).
 
 **Request:**
 ```json
 {
-  "video_ids": ["video_id_1", "video_id_2"]
+  "video_ids": ["video_id_1", "video_id_2"],
+  "format": "mp3"
 }
 ```
+
+**Parameters:**
+- `video_ids` (required): Array of YouTube video IDs
+- `format` (optional): `"mp3"` for audio or `"mp4"` for video (default: `"mp3"`)
 
 **Response:**
 ```json
 {
-  "message": "Download started",
+  "message": "MP3 download started",
   "total": 2
 }
 ```

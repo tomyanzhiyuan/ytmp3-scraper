@@ -234,7 +234,7 @@ async def download_videos_task(video_ids: list, format: str = "mp3"):
             else:
                 logger.warning("⚠️  No channel name set! Files will be saved to: output/")
 
-        file_exists, existing_path = check_file_exists(title, channel_name)
+        file_exists, existing_path = check_file_exists(title, channel_name, format)
 
         if file_exists:
             logger.info(f"✓ Already downloaded ({idx}/{len(video_ids)}): {title}")

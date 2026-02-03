@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(tree:*)",
+      "Bash(python -m ruff check:*)",
+      "Bash(npm run lint)",
+      "Bash(npm run typecheck:*)",
+      "Bash(npm audit fix:*)",
+      "Bash(npm install)",
+      "Bash(ruff check:*)",
+      "Bash(npm run build:*)",
+      "Bash(python -m py_compile:*)",
+      "Bash(python3 -m py_compile:*)",
+      "Bash(python3 -m pytest:*)"
+    ]
+  }
+}
