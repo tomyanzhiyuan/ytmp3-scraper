@@ -12,7 +12,10 @@
       "Bash(python -m py_compile:*)",
       "Bash(python3 -m py_compile:*)",
       "Bash(python3 -m pytest:*)",
-      "Bash(docker build:*)"
+      "Bash(docker build:*)",
+      "Bash(docker compose:*)",
+      "Bash(docker compose up:*)",
+      "Bash(curl:*)"
     ]
   }
 }

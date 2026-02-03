@@ -3,9 +3,12 @@ FastAPI application for YouTube MP3 scraper.
 """
 
 import logging
+import os
 
 from fastapi import BackgroundTasks, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from downloader import (
     check_file_exists,
@@ -69,7 +72,15 @@ scrape_state: dict = {
 
 @app.get("/")
 async def root():
-    """Root endpoint"""
+    """Root endpoint - serves frontend if available, otherwise API info"""
+    # Check if frontend is built and available
+    frontend_index = os.path.join(
+        os.path.dirname(os.path.dirname(__file__)), "frontend", "dist", "index.html"
+    )
+    if os.path.exists(frontend_index):
+        return FileResponse(frontend_index)
+
+    # Fallback to API info when frontend not available (dev mode)
     return {
         "message": "YouTube MP3 Scraper API",
         "version": "1.0.0",
@@ -378,6 +389,27 @@ async def get_output_dir():
     Get the output directory path.
     """
     return {"output_directory": get_output_directory()}
+
+
+# Serve frontend static files in production (Docker)
+# The frontend dist is at ../frontend/dist relative to backend/
+FRONTEND_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend", "dist")
+
+if os.path.exists(FRONTEND_DIR):
+    # Serve static assets (JS, CSS, images)
+    app.mount("/assets", StaticFiles(directory=os.path.join(FRONTEND_DIR, "assets")), name="assets")
+
+    @app.get("/{full_path:path}")
+    async def serve_frontend(full_path: str):
+        """
+        Serve frontend for all non-API routes (SPA catch-all).
+        """
+        # Try to serve the requested file
+        file_path = os.path.join(FRONTEND_DIR, full_path)
+        if os.path.isfile(file_path):
+            return FileResponse(file_path)
+        # Fall back to index.html for SPA routing
+        return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
 
 
 if __name__ == "__main__":
