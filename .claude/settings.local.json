@@ -15,7 +15,9 @@
       "Bash(docker build:*)",
       "Bash(docker compose:*)",
       "Bash(docker compose up:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(git status:*)",
+      "Bash(git fetch:*)"
     ]
   }
 }
