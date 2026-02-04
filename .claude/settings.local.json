@@ -17,7 +17,9 @@
       "Bash(docker compose up:*)",
       "Bash(curl:*)",
       "Bash(git status:*)",
-      "Bash(git fetch:*)"
+      "Bash(git fetch:*)",
+      "Bash(ls:*)",
+      "Bash(npm audit:*)"
     ]
   }
 }
