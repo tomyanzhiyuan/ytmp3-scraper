@@ -19,7 +19,13 @@
       "Bash(git status:*)",
       "Bash(git fetch:*)",
       "Bash(ls:*)",
-      "Bash(npm audit:*)"
+      "Bash(npm audit:*)",
+      "Bash(git tag:*)",
+      "Bash(git push:*)",
+      "Bash(gh release create v1.0.0 --title \"v1.0.0 - Initial Release\" --notes \"$\\(cat <<''EOF''\n## Features\n\n- **MP3 & MP4 Downloads** - Download YouTube videos as high-quality 320kbps MP3 or MP4 video\n- **Channel Scraping** - Scrape entire YouTube channels using Data API v3 \\(unlimited videos\\)\n- **Content Filtering** - Filter by type \\(videos/shorts/all\\) and time frame \\(week/month/year/all\\)\n- **Shorts Detection** - Accurate YouTube Shorts detection via `/shorts/` URL verification\n- **Duplicate Detection** - Smart detection for both MP3 and MP4 formats\n- **Real-time Progress** - Live progress tracking in the web UI\n- **Docker Support** - One-command deployment with `docker compose up`\n- **API Fallback** - Works without API key using yt-dlp \\(limited to ~360 videos\\)\n\n## Tech Stack\n\n| Component | Technology |\n|-----------|------------|\n| Backend | FastAPI, yt-dlp, Python 3.11+ |\n| Frontend | React 18, TypeScript, Vite, Tailwind CSS |\n| Testing | 72+ unit tests with pytest |\n\n## Quick Start\n\n```bash\ngit clone https://github.com/tomyanzhiyuan/ytmp3-scraper.git\ncd ytmp3-scraper\ndocker compose up --build\n# Open http://localhost:8000\n```\n\n## Full Changelog\n\nSee [README.md]\\(https://github.com/tomyanzhiyuan/ytmp3-scraper#readme\\) for complete documentation.\nEOF\n\\)\")",
+      "Bash(gh release view:*)",
+      "Bash(gh release edit v1.0.0 --title \"v1.0.0 - Initial Release\" --notes \"$\\(cat <<''EOF''\n## Features\n\n- **MP3 & MP4 Downloads** - Download YouTube videos as high-quality 320kbps MP3 or MP4 video\n- **Channel Scraping** - Scrape entire YouTube channels using Data API v3 \\(unlimited videos\\)\n- **Content Filtering** - Filter by type \\(videos/shorts/all\\) and time frame \\(week/month/year/all\\)\n- **Shorts Detection** - Accurate YouTube Shorts detection via `/shorts/` URL verification\n- **Duplicate Detection** - Smart detection for both MP3 and MP4 formats\n- **Real-time Progress** - Live progress tracking in the web UI\n- **Docker Support** - One-command deployment with `docker compose up`\n- **API Fallback** - Works without API key using yt-dlp \\(limited to ~360 videos\\)\n\n## Tech Stack\n\n| Component | Technology |\n|-----------|------------|\n| Backend | FastAPI, yt-dlp, Python 3.11+ |\n| Frontend | React 18, TypeScript, Vite, Tailwind CSS |\n| Testing | 72+ unit tests with pytest |\n\n## Quick Start\n\n\\\\`\\\\`\\\\`bash\ngit clone https://github.com/tomyanzhiyuan/ytmp3-scraper.git\ncd ytmp3-scraper\ndocker compose up --build\n# Open http://localhost:8000\n\\\\`\\\\`\\\\`\n\nSee [README]\\(https://github.com/tomyanzhiyuan/ytmp3-scraper#readme\\) for full documentation.\nEOF\n\\)\")",
+      "Bash(gh release:*)"
     ]
   }
 }
